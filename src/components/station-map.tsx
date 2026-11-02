@@ -162,12 +162,12 @@ export function StationMap({
           <pattern id={`grid-${patternId}`} width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#c6cdc5" opacity=".5" /></pattern>
           <pattern id={`track-${patternId}`} width="12" height="14" patternUnits="userSpaceOnUse"><path d="M0 7H12" stroke="#a3aaa2" strokeWidth="3" /></pattern>
         </defs>
-        <rect x="-1000" y="-1000" width="4000" height="4000" fill="#eef0e9" />
+        <rect x="-1000" y="-1000" width="4000" height="4000" fill="#edf2f8" />
         <rect x="0" y="0" width={station.width} height={station.height} fill={`url(#grid-${patternId})`} />
         <text x="52" y="91" className="plan-eyebrow">RAILNAVI DEMO CENTRAL</text>
         <text x="52" y="118" className="plan-subtitle">{floor === 0 ? "Concourse & platforms" : floor === 1 ? "Elevated pedestrian connections" : "Lower passenger passage"}</text>
         <g transform="translate(1110 76)" aria-hidden="true"><path d="M0 28V0M-6 10L0 0L6 10" fill="none" stroke="#30423b" strokeWidth="2" /><text y="47" textAnchor="middle" className="map-small">N</text></g>
-        <rect x="40" y="150" width="1120" height="640" rx="28" fill="#e3e8dd" stroke="#d2d9ce" strokeWidth="2" />
+        <rect x="40" y="150" width="1120" height="640" rx="28" fill="#e0e7f0" stroke="#c4d1e1" strokeWidth="2" />
         <g opacity={floor === 0 ? 1 : 0.24}>
           {Array.from({ length: 13 }, (_, i) => {
             const x = 208 + i * 64;
@@ -175,21 +175,21 @@ export function StationMap({
           })}
           {station.platforms.map(platform => (
             <g key={platform.id}>
-              <rect {...platform.bounds} rx="7" fill={destination?.platformId === platform.id ? "#d9efb7" : "#fbfcf5"} stroke={destination?.platformId === platform.id ? "#5e8d42" : "#c6cfbf"} strokeWidth="2" />
+              <rect {...platform.bounds} rx="7" fill={destination?.platformId === platform.id ? "#d8eaff" : "#fbfdff"} stroke={destination?.platformId === platform.id ? "#3b83dc" : "#bacde2"} strokeWidth="2" />
               <path d={`M${platform.bounds.x + 4} 215V715M${platform.bounds.x + platform.bounds.width - 4} 215V715`} stroke="#d3b665" strokeWidth="1.5" strokeDasharray="3 5" />
-              <rect x={platform.bounds.x + 5} y="229" width="28" height="32" rx="5" fill={destination?.platformId === platform.id ? "#204d33" : "#30453c"} />
+              <rect x={platform.bounds.x + 5} y="229" width="28" height="32" rx="5" fill={destination?.platformId === platform.id ? "#1255a8" : "#24486e"} />
               <text x={platform.bounds.x + 19} y="251" textAnchor="middle" className="platform-number">{platform.number}</text>
               <text x={platform.bounds.x + 19} y="697" textAnchor="middle" className="platform-bottom">{platform.number}</text>
             </g>
           ))}
         </g>
         {station.corridors.filter(c => c.floor === floor).map((corridor, i) => (
-          <rect key={i} x={corridor.x} y={corridor.y} width={corridor.width} height={corridor.height} rx="9" fill={floor === 1 ? "#d4e4ec" : floor === -1 ? "#d7e5d3" : "#f8f9f1"} stroke={floor === 1 ? "#a3bfcc" : "#bdcbb4"} strokeWidth="2" />
+          <rect key={i} x={corridor.x} y={corridor.y} width={corridor.width} height={corridor.height} rx="9" fill={floor === 1 ? "#d4e4ec" : floor === -1 ? "#dde9f6" : "#f8fbff"} stroke={floor === 1 ? "#a3bfcc" : "#b9cde2"} strokeWidth="2" />
         ))}
         {floor === 0 ? <>
-          {[300, 620].map((y, i) => <g key={y} pointerEvents="none"><rect x="110" y={y - 20} width="976" height="40" rx="8" fill="#d9e5e6" fillOpacity=".36" stroke="#94b0ba" strokeDasharray="5 6" /><text x="600" y={y - 29} textAnchor="middle" className="bridge-label">FOOT OVERBRIDGE {i ? "B" : "A"} · LEVEL +1</text></g>)}
+          {[300, 620].map((y, i) => <g key={y} pointerEvents="none"><rect x="110" y={y - 20} width="976" height="40" rx="8" fill="#d9e5e6" fillOpacity=".36" stroke="#94b0ba" strokeDasharray="5 6" /><text x="600" y={y - 29} textAnchor="middle" className="bridge-label">FOOT OVERBRIDGE {i ? "B" : "A"} Â· LEVEL +1</text></g>)}
           <path d="M130 460H1066" stroke="#b0c5a5" strokeWidth="3" strokeDasharray="5 8" opacity=".5" />
-          <text x="600" y="445" textAnchor="middle" className="bridge-label">LOWER PASSAGE · LEVEL −1</text>
+          <text x="600" y="445" textAnchor="middle" className="bridge-label">LOWER PASSAGE Â· LEVEL âˆ’1</text>
           <text transform="translate(148 460) rotate(-90)" textAnchor="middle" className="concourse-label">MAIN CONCOURSE</text>
           <text transform="translate(1084 460) rotate(-90)" textAnchor="middle" className="concourse-label">SECONDARY CONCOURSE</text>
           {station.entrances.map(entrance => {
@@ -203,7 +203,7 @@ export function StationMap({
           return <g key={group.nodeId} transform={`translate(${point.x} ${point.y})`} pointerEvents="none">
             <title>{`${point.name}: ${[...group.kinds].join(", ")}`}</title>
             <rect x="-17" y="-10" width="34" height="20" rx="5" fill={lift ? "#e8f0fb" : "#f4eee1"} stroke={lift ? "#819fba" : "#b5a480"} />
-            <text x="0" y="3" textAnchor="middle" className="vertical-bay-label">{[group.kinds.has("stairs") ? "S" : "", group.kinds.has("escalator") ? "E" : "", lift ? "L" : ""].filter(Boolean).join("·")}</text>
+            <text x="0" y="3" textAnchor="middle" className="vertical-bay-label">{[group.kinds.has("stairs") ? "S" : "", group.kinds.has("escalator") ? "E" : "", lift ? "L" : ""].filter(Boolean).join("Â·")}</text>
           </g>;
         })}
         {routeSegments.map(({ edge, from, to }) => <g key={edge.id} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#fff" strokeWidth="15" strokeLinecap="round" /><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#08795b" strokeWidth="8" strokeLinecap="round" /></g>)}
@@ -228,7 +228,7 @@ export function StationMap({
         })}
         {[{ point: start, label: "A", color: "#3e67bd" }, { point: destination, label: "B", color: "#08795b" }].map(({ point, label, color }) => point?.floor === floor ? <g key={label} data-testid={label === "A" ? "start-marker" : "destination-marker"} pointerEvents="none"><circle cx={point.x} cy={point.y} r="21" fill="#fff" opacity=".8" /><circle cx={point.x} cy={point.y} r="15" fill={color} stroke="#fff" strokeWidth="3" /><text x={point.x} y={point.y + 5} textAnchor="middle" className="marker-letter">{label}</text></g> : null)}
         <g transform="translate(60 818)"><path d="M0 0H100M0 -4V4M100 -4V4" stroke="#5b6b5f" strokeWidth="2" /><text x="50" y="20" textAnchor="middle" className="map-small">50 m</text></g>
-        <text x="1140" y="831" textAnchor="end" className="map-small">FICTIONAL STATION · SCHEMATIC PLAN</text>
+        <text x="1140" y="831" textAnchor="end" className="map-small">FICTIONAL STATION Â· SCHEMATIC PLAN</text>
       </svg>
       {!preview && <>
         <div className="map-tools" aria-label="Map controls">
@@ -238,8 +238,8 @@ export function StationMap({
           <span className="tool-divider" />
           <button type="button" className="icon-button" aria-label="Reset map view" onClick={recenter}><Expand size={18} /></button>
         </div>
-        <div className="map-legend"><span><i className="legend-route" />Your route</span><span><ArrowUpDown size={13} />S Stairs · E Escalator · L Lift</span><span><Accessibility size={13} />Step-free via lifts</span></div>
-        <div className="map-hint"><Move size={13} /><span>Drag to pan · Scroll or pinch to zoom</span><ArrowUpRight size={14} /></div>
+        <div className="map-legend"><span><i className="legend-route" />Your route</span><span><ArrowUpDown size={13} />S Stairs Â· E Escalator Â· L Lift</span><span><Accessibility size={13} />Step-free via lifts</span></div>
+        <div className="map-hint"><Move size={13} /><span>Drag to pan Â· Scroll or pinch to zoom</span><ArrowUpRight size={14} /></div>
       </>}
     </div>
   );
