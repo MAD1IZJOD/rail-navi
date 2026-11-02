@@ -22,8 +22,8 @@ test("ticket to accessible navigation follows a changed platform assignment",asy
  await page.getByRole("button",{name:/Try a sample/}).click();await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByTestId("ticket-platform")).toHaveText("6");expect(errors).toEqual([]);
 });
 test("invalid references cancelled bookings train search and clean reset",async({page})=>{
- await page.goto("/ticket");await page.getByLabel("Synthetic booking reference").fill("1234567890");await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByRole("alert")).toContainText("Do not enter a real PNR");
- await page.getByLabel("Synthetic booking reference").fill("RN-DEMO-1020");await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByRole("alert")).toContainText("unavailable");
+ await page.goto("/ticket");await page.getByLabel("Synthetic booking reference").fill("1234567890");await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByRole("dialog").getByRole("alert")).toContainText("Do not enter a real PNR");
+ await page.getByLabel("Synthetic booking reference").fill("RN-DEMO-1020");await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByRole("dialog").getByRole("alert")).toContainText("unavailable");
  await page.getByRole("button",{name:"Find a train",exact:true}).click();await page.getByLabel("Train name or demo number").fill("moonrize");await page.locator(".train-results button").click();await expect(page.getByTestId("ticket-platform")).toHaveText("10");await page.getByRole("button",{name:"Navigate to Platform 10",exact:true}).click();await expect(page.getByTestId("route-summary")).toContainText("Platform 10");
  await page.getByRole("button",{name:"Find My Platform",exact:true}).click();await expect(page.getByLabel("Synthetic booking reference")).toHaveValue("");
 });
@@ -32,7 +32,7 @@ test("six viewport layouts remain readable with reduced motion",async({page},inf
  for(const width of [360,390,430,768,1280,1440]){
  await page.setViewportSize({width,height:900});await booking(page);
  expect(await page.evaluate(()=>document.body.scrollWidth<=innerWidth)).toBe(true);
- await page.getByRole("button",{name:"Navigate to Platform 10",exact:true}).click();await expect(page.getByTestId("route-segment").first()).toBeVisible();
+ await page.getByRole("button",{name:"Navigate to Platform 10",exact:true}).click();await expect(page.getByTestId("start-marker")).toBeVisible();
  await page.screenshot({path:info.outputPath(`station-${width}.png`),animations:"disabled"});
  }
 });
