@@ -19,7 +19,7 @@ export function validateGraph(graph: NavigationGraph): string[] {
   const edges = new Set<string>();
   for (const node of graph.nodes) {
     if (nodes.has(node.id)) errors.push(`Duplicate node: ${node.id}`);
-    if (!Number.isFinite(node.x) || !Number.isFinite(node.y) || ![-1, 0, 1].includes(node.floor)) {
+    if (!Number.isFinite(node.x) || !Number.isFinite(node.y) || ![-2, -1, 0, 1, 2].includes(node.floor)) {
       errors.push(`Invalid position: ${node.id}`);
     }
     nodes.set(node.id, node);
