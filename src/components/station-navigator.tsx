@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowRight, ArrowUpRight, Accessibility, Check, ChevronDown, ChevronUp,
   Clock3, Flag, Footprints, Layers3, LoaderCircle, MapPin, Navigation,
@@ -36,6 +36,7 @@ export function StationNavigator() {
   const [selectedFacility, setSelectedFacility] = useState<Facility>();
   const [category, setCategory] = useState<FacilityCategory | "all">("all");
   const [query, setQuery] = useState("");
+  const directionsRef = useRef<HTMLElement>(null);
   const facilityResults = useMemo(() => station.facilities.filter(facility =>
     (category === "all" || facility.category === category) &&
     facility.name.toLowerCase().includes(query.toLowerCase().trim())),
@@ -74,6 +75,11 @@ export function StationNavigator() {
   function inspect(facility: Facility) {
     setSelectedFacility(facility); setFloor(facility.floor);
   }
+  function showDirections() {
+    setTab("directions");
+    setExpanded(true);
+    requestAnimationFrame(() => directionsRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  }
   const available = route?.status === "available";
   const routeEnd = route?.nodes.at(-1)?.name;
   const submit = (event: FormEvent) => { event.preventDefault(); void calculate(); };
@@ -91,7 +97,7 @@ export function StationNavigator() {
       </section>
       <div className="navigation-workspace">
         <aside className={`navigation-panel ${expanded ? "panel-expanded" : ""}`} aria-label="Journey planner and directions">
-          <button type="button" className="mobile-panel-toggle" onClick={() => setExpanded(!expanded)} aria-expanded={expanded} aria-controls="planner-content">
+          <button type="button" className="mobile-panel-toggle" onClick={() => { if (!expanded && available) showDirections(); else setExpanded(!expanded); }} aria-expanded={expanded} aria-controls="planner-content">
             <span className="mobile-grip" /><span><strong>{available ? `${minutes(route.durationSeconds)} min · ${Math.round(route.distanceMeters)} m` : "Plan your station journey"}</strong><small>{available ? routeEnd : "Choose your start, platform and route"}</small></span>{expanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
           </button>
           <div className="panel-content" id="planner-content">
@@ -112,7 +118,7 @@ export function StationNavigator() {
                 <button type="submit" className="button button-primary calculate-button" disabled={computing}>{computing ? <LoaderCircle size={18} className="spin" /> : <Navigation size={17} />} {computing ? "Calculating route…" : available ? "Calculate again" : "Find my route"}<ArrowRight size={17} /></button>
               </form>
               {error && <div className="route-error" role="alert"><strong>Route unavailable</strong><p>{error}</p></div>}
-              {available && <section className="directions-section" aria-label="Calculated directions" aria-live="polite">
+              {available && <section ref={directionsRef} className="directions-section" aria-label="Calculated directions" aria-live="polite">
                 <div className="route-summary" data-testid="route-summary">
                   <div className="route-ready"><span className="status-dot" />YOUR ROUTE IS READY <span>{preferences.find(item => item.id === route.preference)?.name}</span></div>
                   <div className="route-numbers"><strong>{minutes(route.durationSeconds)}<span> min</span></strong><i /><strong>{Math.round(route.distanceMeters)}<span> m</span></strong><small>{route.floorChanges.length} level changes</small></div>
@@ -141,7 +147,7 @@ export function StationNavigator() {
           {bridgeClosed && <div className="closure-banner">Bridge A walkway closed · Routes use an alternative crossing</div>}
           <StationMap station={station} floor={floor} route={route} showFacilities={tab === "facilities"} facilityCategory={category} selectedFacilityId={selectedFacility?.id} onFacilitySelect={inspect} />
           <div className="floor-switcher" aria-label="Select station level"><span>LEVELS</span>{station.floors.map(item => <button type="button" key={item.id} aria-label={`Show ${floorLabel(item.id)}`} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}><strong>{item.id > 0 ? "+" : ""}{item.id}</strong><span>{item.name}</span>{route?.nodes.some(node => node.floor === item.id) && <i className="floor-route-dot" />}</button>)}</div>
-          {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes(route.durationSeconds)} min</strong> to {routeEnd}</span><button type="button" onClick={() => { setTab("directions"); setExpanded(true); }}>Directions<ChevronUp size={14} /></button></div>}
+          {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes(route.durationSeconds)} min</strong> to {routeEnd}</span><button type="button" onClick={showDirections}>Directions<ChevronUp size={14} /></button></div>}
           {selectedFacility && <div className="facility-detail" role="region" aria-label="Selected facility"><button type="button" className="detail-close icon-button" aria-label="Close facility details" onClick={() => setSelectedFacility(undefined)}><X size={17} /></button><span className="facility-icon"><FacilityIcon category={selectedFacility.category} size={22} /></span><div><small>{facilityLabels[selectedFacility.category]} · {floorLabel(selectedFacility.floor)}</small><h3>{selectedFacility.name}</h3><p><Accessibility size={14} />Accessible via step-free connections</p><button type="button" className="text-button" onClick={() => { setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId }); }}>Route here<ArrowRight size={15} /></button></div></div>}
           <div className="station-disclaimer">Demonstration station · No live railway or passenger data</div>
         </section>
