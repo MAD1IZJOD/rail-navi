@@ -1,0 +1,15 @@
+import {expect,it} from "vitest";
+import {demoTrains,demoTickets,lookupTicket,searchTrains,assignPlatform,routeToTrain} from "../src/lib/tickets/demo";
+import {demoStation as station,bridgeAEdgeIds} from "../src/lib/station/demo-station";
+it("contains 20 unique departures and 30 synthetic bookings",()=>{expect(new Set(demoTrains.map(t=>t.id)).size).toBe(20);expect(new Set(demoTickets.map(t=>t.reference)).size).toBe(30);});
+it("normalizes synthetic references and joins tickets to departures",()=>{const r=lookupTicket(" rn-demo-1001 ");expect(r.status).toBe("found");if(r.status==="found"){expect(r.train.platformId).toBe("platform-10");expect(r.ticket.coach).toBe("C1");}});
+it.each(["1234567890","","RN-1001","RN-DEMO-abc"])("rejects non-demo reference %s",key=>expect(lookupTicket(key).status).toBe("invalid"));
+it("handles an unknown booking",()=>expect(lookupTicket("RN-DEMO-9999").status).toBe("missing"));
+it("handles a missing departure",()=>expect(lookupTicket("RN-DEMO-1001",[]).status).toBe("unavailable"));
+it("handles cancelled bookings and trains",()=>{expect(lookupTicket("RN-DEMO-1020").status).toBe("unavailable");expect(lookupTicket("RN-DEMO-1030").status).toBe("unavailable");});
+it("searches name number and one-character typos",()=>{expect(searchTrains("moonrise")[0]?.id).toBe("train-1");expect(searchTrains("RN2001")[0]?.id).toBe("train-1");expect(searchTrains("moonrize")[0]?.id).toBe("train-1");expect(searchTrains("impossible")).toEqual([]);});
+it("updates one immutable assignment shared by ticket and route",()=>{const changed=assignPlatform(demoTrains,"train-1","platform-6",station.platforms.map(p=>p.id));expect(demoTrains[0]?.platformId).toBe("platform-10");const r=lookupTicket("RN-DEMO-1001",changed);expect(r.status).toBe("found");if(r.status==="found"){expect(r.train.platformId).toBe("platform-6");expect(routeToTrain(station,r.train,"gate-1",station.platforms)?.nodes.at(-1)?.id).toBe("p6-destination");}});
+it("rejects unknown train and platform assignments",()=>{expect(()=>assignPlatform(demoTrains,"unknown","platform-6",["platform-6"])).toThrow();expect(()=>assignPlatform(demoTrains,"train-1","platform-99",["platform-6"])).toThrow();});
+it("computes multi-floor wheelchair ticket routes and respects closures",()=>{const r=routeToTrain(station,demoTrains[0]!,"gate-1",station.platforms,"wheelchair",bridgeAEdgeIds)!;expect(r.status).toBe("available");expect(r.floorChanges.length).toBeGreaterThan(0);expect(r.edges.every(e=>e.kind==="walk"||e.kind==="lift")).toBe(true);});
+it("reports fully blocked assigned platforms safely",()=>{const blocked=station.edges.filter(e=>e.kind!=="walk"&&e.from.startsWith("p10-")).map(e=>e.id);expect(routeToTrain(station,demoTrains[0]!,"gate-1",station.platforms,"fastest",blocked)?.status).toBe("unreachable");expect(routeToTrain(station,{...demoTrains[0]!,status:"cancelled"},"gate-1",station.platforms)).toBeNull();});
+it.each(demoTrains.filter(t=>t.status!=="cancelled"))("resolves $id to a real platform",train=>expect(routeToTrain(station,train,"gate-1",station.platforms)?.status).toBe("available"));
