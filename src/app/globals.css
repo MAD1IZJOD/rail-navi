@@ -121,8 +121,8 @@ svg { flex-shrink: 0; }
 .location-fields { position: relative; border: 1px solid #dce3d4; border-radius: 11px; margin-top: 23px; overflow: hidden; }
 .location-field { position: relative; padding: 14px 10px 12px 38px; min-height: 64px; }
 .location-field:first-child { border-bottom: 1px solid #e7ebdf; }
-.location-field label { display: block; color: #97a08d; letter-spacing: 1px; font-size: 8px; font-weight: 700; }
-.location-field select { font-size: 11px; font-weight: 600; width: 100%; border: 0; padding: 8px 0 0; color: #425a43; background: #fff; cursor: pointer; }
+.location-field label { display: block; color: #78866e; letter-spacing: 1px; font-size: 9px; font-weight: 700; }
+.location-field select { font-size: 12px; font-weight: 600; width: 100%; border: 0; padding: 8px 0 0; color: #425a43; background: #fff; cursor: pointer; }
 .location-dot { position: absolute; left: 16px; top: 29px; width: 9px; height: 9px; }
 .start-dot { border: 2px solid #6688bb; border-radius: 50%; }
 .end-dot { background: #6d9754; border: 2px solid #e5efd9; outline: 1px solid #6d9754; border-radius: 2px; }
@@ -133,8 +133,8 @@ svg { flex-shrink: 0; }
 .preference-option { position: relative; display: flex; align-items: center; gap: 8px; padding: 12px 9px; border: 1px solid #e3e7dc; border-radius: 8px; cursor: pointer; min-height: 60px; color: #8c987e; }
 .preference-option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .preference-option:has(input:focus-visible) { outline: 3px solid #5489d3; outline-offset: 2px; }
-.preference-option strong { display: block; font-size: 10px; font-weight: 600; color: #5b6e51; }
-.preference-option small { display: block; font-size: 7px; margin-top: 5px; white-space: nowrap; color: #99a08b; }
+.preference-option strong { display: block; font-size: 12px; font-weight: 600; color: #506447; }
+.preference-option small { display: block; font-size: 8px; margin-top: 5px; white-space: nowrap; color: #7c896e; }
 .preference-option.selected { background: #f2f7e8; border-color: #91b477; color: #659447; }
 .preference-check { position: absolute; top: 5px; right: 5px; }
 .simulation-settings { font-size: 9px; margin-top: 17px; color: #8d9980; }
@@ -172,8 +172,8 @@ svg { flex-shrink: 0; }
 .direction-step:hover { background: #f6f8ef; }.direction-step.on-floor { background: #f9faf5; }
 .step-number { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid #dde6d2; border-radius: 50%; font-size: 9px; color: #7f9670; background: #fff; }
 .step-number.arrival { background: #e5efdb; }
-.direction-step strong { display: block; font-size: 10px; line-height: 1.7; font-weight: 500; color: #596d4f; }
-.direction-step small { display: block; font-size: 8px; margin-top: 6px; color: #9ba58e; }
+.direction-step strong { display: block; font-size: 12px; line-height: 1.7; font-weight: 500; color: #465f3c; }
+.direction-step small { display: block; font-size: 10px; margin-top: 6px; color: #7a8b6a; }
 .direction-step > svg { margin-top: 5px; color: #a2af91; }
 .estimate-note { font-size: 8px; line-height: 1.9; color: #a0a891; margin: 15px 22px 22px; }
 .panel-footnote { display: flex; align-items: center; justify-content: center; gap: 7px; color: #a1aa94; font-size: 8px; padding: 17px 10px; border-top: 1px solid #edf0e5; }
@@ -205,6 +205,7 @@ svg { flex-shrink: 0; }
 .map-small { font-size: 10px; letter-spacing: .9px; fill: #8a9981; }.platform-number { font-size: 17px; fill: #fff; font-weight: 600; }.platform-bottom { font-size: 13px; fill: #9aa98b; font-weight: 600; }
 .bridge-label { font-size: 9px; fill: #799588; font-weight: 600; letter-spacing: 1.3px; }.concourse-label { font-size: 10px; fill: #a4b197; letter-spacing: 2px; font-weight: 500; }.gate-label { font-size: 12px; fill: #eef4df; font-weight: 600; letter-spacing: 1px; }
 .transition-letter { font-size: 11px; fill: #167654; font-weight: 700; }.transition-floor { font-size: 9px; fill: white; font-weight: 600; letter-spacing: .5px; }.marker-letter { font-size: 13px; font-weight: 700; fill: white; }
+.vertical-bay-label { font-size: 8px; fill: #4b665a; font-weight: 700; letter-spacing: .3px; }
 .map-tools { position: absolute; right: 22px; bottom: 57px; display: flex; flex-direction: column; align-items: center; background: #fff; border: 1px solid #d7e1cd; border-radius: 10px; padding: 4px; box-shadow: 0 5px 18px #223e3010; }
 .zoom-label { font-size: 8px; color: #8c9b7e; padding: 4px 0; }.tool-divider { width: 23px; height: 1px; background: #e0e7d6; margin: 4px 0; }
 .map-legend { display: flex; align-items: center; gap: 15px; position: absolute; bottom: 37px; left: 22px; background: #fafcf4df; padding: 8px 10px; border: 1px solid #dee5d5; border-radius: 6px; }
@@ -212,7 +213,7 @@ svg { flex-shrink: 0; }
 .map-hint { position: absolute; bottom: 10px; left: 22px; display: flex; align-items: center; gap: 7px; font-size: 8px; color: #9ba58f; }
 .floor-switcher { position: absolute; right: 20px; top: 78px; width: 174px; border: 1px solid #d7dfcc; background: #fafcf5; box-shadow: 0 5px 15px #2d42240b; padding: 7px; border-radius: 11px; z-index: 3; }
 .floor-switcher > span { display: block; font-size: 7px; color: #a0aa92; letter-spacing: 1px; padding: 3px 6px 8px; }
-.floor-switcher > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 7px; background: transparent; border-radius: 6px; text-align: left; position: relative; }
+.floor-switcher > button { width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 11px 7px; background: transparent; border-radius: 6px; text-align: left; position: relative; }
 .floor-switcher > button:hover { background: #eff4e5; }.floor-switcher > button[aria-pressed="true"] { background: #2d513b; color: #eff7e0; }
 .floor-switcher strong { font-size: 12px; width: 19px; text-align: center; }.floor-switcher button > span { font-size: 9px; }.floor-route-dot { width: 4px; height: 4px; background: #87b65e; border-radius: 50%; margin-left: auto; }
 .floor-switcher button[aria-pressed="true"] .floor-route-dot { background: #d8f095; }
@@ -244,7 +245,7 @@ svg { flex-shrink: 0; }
   .mobile-panel-toggle { position: relative; width: 100%; display: flex; justify-content: space-between; align-items: center; text-align: left; padding: 24px 22px 17px; background: white; min-height: 89px; }.mobile-panel-toggle strong { display: block; font-size: 15px; font-weight: 600; }.mobile-panel-toggle small { display: block; font-size: 10px; color: #8d9b7f; margin-top: 7px; max-width: 270px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.mobile-grip { position: absolute; top: 9px; left: calc(50% - 18px); height: 3px; width: 36px; background: #dce3d2; border-radius: 3px; }
   .panel-content { display: none; }.panel-expanded .panel-content { display: block; max-height: calc(min(75dvh, 650px) - 89px); overflow-y: auto; overscroll-behavior: contain; }.panel-tabs { padding: 8px 18px; }.journey-form { padding: 21px 22px; }.panel-heading h2 { font-size: 20px; }.panel-heading p { font-size: 12px; }.location-field label { font-size: 9px; }.location-field select { font-size: 12px; }.preference-option strong { font-size: 12px; }.preference-option small { font-size: 9px; }.preference-option { padding: 14px 12px; }.manual-note { font-size: 9px; }.preference-field legend { font-size: 9px; }.simulation-settings { font-size: 10px; }.calculate-button { font-size: 13px; min-height: 48px; }
   .route-summary { margin-top: 0; }.route-ready { font-size: 8px; }.route-numbers strong { font-size: 30px; }.route-summary > p { font-size: 9px; }.route-summary .text-button { font-size: 11px; }.steps-heading h3 { font-size: 13px; }.direction-step strong { font-size: 12px; }.direction-step small { font-size: 10px; }.direction-step { min-height: 75px; }.estimate-note { font-size: 10px; }.panel-footnote { font-size: 9px; }
-  .floor-switcher { top: 62px; right: 12px; width: 48px; padding: 5px; border-radius: 9px; }.floor-switcher > span { font-size: 6px; }.floor-switcher button { padding: 11px 5px; }.floor-switcher strong { font-size: 12px; }.map-tools { right: 13px; bottom: 48px; padding: 2px; }.icon-button { width: 33px; height: 33px; }.map-legend { left: 12px; bottom: 25px; gap: 10px; padding: 7px; }.map-legend span { font-size: 7px; }.map-legend span:last-child { display: none; }.map-hint { left: 13px; bottom: 8px; font-size: 7px; }.map-hint svg { width: 10px; }.map-route-chip { display: none; }
+  .floor-switcher { top: 62px; right: 12px; width: 58px; padding: 5px; border-radius: 9px; }.floor-switcher > span { font-size: 6px; }.floor-switcher button { padding: 11px 5px; }.floor-switcher strong { font-size: 12px; }.map-tools { right: 13px; bottom: 48px; padding: 2px; }.map-tools .icon-button { width: 44px; height: 44px; }.map-legend { left: 12px; bottom: 25px; gap: 10px; padding: 7px; }.map-legend span { font-size: 7px; }.map-legend span:last-child { display: none; }.map-hint { left: 13px; bottom: 8px; font-size: 7px; }.map-hint svg { width: 10px; }.map-route-chip { display: none; }
   .facility-detail { left: 12px; bottom: 128px; width: 300px; max-width: calc(100% - 75px); padding: 16px; }.facility-detail h3 { font-size: 12px; }.facility-detail p { font-size: 8px; }.facility-detail .text-button { font-size: 11px; }.facility-detail .facility-icon { width: 32px; height: 32px; }.facility-card { min-height: 64px; }.facility-card strong { font-size: 12px; }.facility-card small { font-size: 10px; }.facility-count { font-size: 10px; }.category-label { font-size: 9px; }.category-select, .facility-search input { font-size: 12px; }.closure-banner { padding: 8px 13px; font-size: 9px; }
 }
 @media (max-width: 380px) { .hero h1 { font-size: 43px; }.hero-stats > div { padding: 0 9px; }.hero-stats strong { font-size: 21px; }.hero-stats strong span { font-size: 9px; }.hero-stats > div:last-child { gap: 5px; }.hero-stats > div:last-child > svg { width: 18px; }.hero-stats .stepfree-stat { font-size: 11px; }.station-strip h1 { font-size: 16px; }.station-strip .eyebrow { font-size: 6px; }.station-strip .demo-badge { font-size: 5px; }.map-topbar > div > span:last-child { max-width: 115px; }.journey-band ol { gap: 12px; } }
