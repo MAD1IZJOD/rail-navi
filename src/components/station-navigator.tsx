@@ -13,6 +13,8 @@ import { manualPositioningProvider } from "@/lib/positioning/manual";
 import { bridgeAEdgeIds, demoStation as station } from "@/lib/station/demo-station";
 import { FacilityIcon, facilityLabels } from "./facility-icon";
 import { StationMap } from "./station-map";
+import { TicketLookup } from "./ticket-lookup";
+import { assignPlatform, demoTrains } from "@/lib/tickets/demo";
 
 const preferences: { id: RoutePreference; name: string; description: string; icon: typeof Clock3 }[] = [
   { id: "fastest", name: "Fastest", description: "Least estimated time", icon: Clock3 },
@@ -22,7 +24,12 @@ const preferences: { id: RoutePreference; name: string; description: string; ico
 ];
 const minutes = (seconds: number) => Math.max(1, Math.ceil(seconds / 60));
 
-export function StationNavigator() {
+export function StationNavigator({ initialTicket = false }: { initialTicket?: boolean }) {
+  const [ticketOpen, setTicketOpen] = useState(initialTicket);
+  const [trains, setTrains] = useState(demoTrains);
+  const [activeTrainId, setActiveTrainId] = useState("");
+  const [platformNotice, setPlatformNotice] = useState("");
+  const activeTrain = trains.find(train => train.id === activeTrainId);
   const [origin, setOrigin] = useState("gate-1");
   const [destination, setDestination] = useState("p10-destination");
   const [preference, setPreference] = useState<RoutePreference>("fastest");
@@ -42,7 +49,24 @@ export function StationNavigator() {
     facility.name.toLowerCase().includes(query.toLowerCase().trim())),
   [category, query]);
 
-  function invalidate() { setRoute(null); setError(""); }
+  function invalidate() { setRoute(null); setError(""); setActiveTrainId(""); setPlatformNotice(""); }
+  function navigateTrain(trainId: string, anchorId: string) {
+    const train = trains.find(item => item.id === trainId);
+    const platform = station.platforms.find(item => item.id === train?.platformId);
+    if (!platform || train?.status === "cancelled") { setRoute(null); setError("This demo departure is unavailable."); return; }
+    setActiveTrainId(trainId); setOrigin(anchorId); setDestination(platform.nodeId);
+    setTicketOpen(false); setPlatformNotice("");
+    void calculate({ origin: anchorId, destination: platform.nodeId });
+  }
+  function changePlatform(platformId: string) {
+    if (!activeTrain) return;
+    const updated = assignPlatform(trains, activeTrain.id, platformId, station.platforms.map(p => p.id));
+    setTrains(updated);
+    const platform = station.platforms.find(p => p.id === platformId)!;
+    setRoute(null); setDestination(platform.nodeId);
+    setPlatformNotice(`Simulation: ${activeTrain.name} moved to Platform ${platform.number}. Route recalculated from your selected checkpoint.`);
+    void calculate({ destination: platform.nodeId });
+  }
   async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean } = {}) {
     const chosenOrigin = override.origin ?? origin;
     const chosenDestination = override.destination ?? destination;
@@ -69,6 +93,7 @@ export function StationNavigator() {
     } finally { setComputing(false); }
   }
   function quickDemo() {
+    setActiveTrainId(""); setPlatformNotice("");
     setOrigin("gate-1"); setDestination("p10-destination"); setPreference("fastest"); setBridgeClosed(false);
     void calculate({ origin: "gate-1", destination: "p10-destination", preference: "fastest", bridgeClosed: false });
   }
@@ -86,9 +111,10 @@ export function StationNavigator() {
 
   return (
     <main className="navigator">
+      {ticketOpen && <TicketLookup trains={trains} onClose={() => setTicketOpen(false)} onNavigate={navigateTrain} />}
       <header className="app-header">
         <Link href="/" className="brand" aria-label="RailNavi home"><span className="brand-icon"><TrainFront size={22} /></span>rail<span>navi</span><i /></Link>
-        <div className="header-center"><span className="status-dot" />INDOOR NAVIGATION, MADE SIMPLE</div>
+        <button type="button" className="platform-entry" onClick={() => setTicketOpen(true)}>Find My Platform <ArrowUpRight size={16}/></button>
         <details className="help-menu"><summary>How it works <ChevronDown size={14} /></summary><div><strong>Your station, made familiar.</strong><p>Select a known entrance, choose your platform, and calculate a route. Switch levels to follow the highlighted path.</p><p>This fictional station uses manual positioning. No location permission is needed.</p><Link href="/">About RailNavi <ArrowUpRight size={14} /></Link></div></details>
       </header>
       <section className="station-strip">
@@ -143,9 +169,12 @@ export function StationNavigator() {
           </div>
         </aside>
         <section className="map-panel" aria-label="Station plan">
+          {platformNotice && <div className="platform-notice" role="status">{platformNotice}</div>}
+          {activeTrain && <div className="train-control"><span><strong>{activeTrain.name}</strong> · Platform <b data-testid="active-platform">{activeTrain.platformId.split("-")[1]}</b></span><details><summary>Simulate platform change</summary><label htmlFor="simulate-platform">Demo assignment</label><select id="simulate-platform" value={activeTrain.platformId} onChange={event => changePlatform(event.target.value)}>{station.platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></details></div>}
           <div className="map-topbar"><div><span className="status-dot" /><strong>{floorLabel(floor)}</strong><span>{station.floors.find(item => item.id === floor)?.name}</span></div><button type="button" className={`facilities-toggle ${tab === "facilities" ? "active" : ""}`} onClick={() => { setTab(tab === "facilities" ? "directions" : "facilities"); setExpanded(true); }}><MapPin size={15} /><span>Facilities</span></button></div>
           {bridgeClosed && <div className="closure-banner">Bridge A walkway closed · Routes use an alternative crossing</div>}
           <StationMap station={station} floor={floor} route={route} showFacilities={tab === "facilities"} facilityCategory={category} selectedFacilityId={selectedFacility?.id} onFacilitySelect={inspect} />
+          {available && <div className="next-direction" key={route.edges.map(e => e.id).join("|")}><span className="next-arrow"><Navigation size={24}/></span><div><small>YOUR NEXT DIRECTION · {floorLabel(route.instructions[0]!.floor)}</small><strong>{route.instructions[0]?.text}</strong><p>{Math.round(route.distanceMeters)} m · {minutes(route.durationSeconds)} min · {routeEnd}</p></div></div>}
           <div className="floor-switcher" aria-label="Select station level"><span>LEVELS</span>{station.floors.map(item => <button type="button" key={item.id} aria-label={`Show ${floorLabel(item.id)}`} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}><strong>{item.id > 0 ? "+" : ""}{item.id}</strong><span>{item.name}</span>{route?.nodes.some(node => node.floor === item.id) && <i className="floor-route-dot" />}</button>)}</div>
           {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes(route.durationSeconds)} min</strong> to {routeEnd}</span><button type="button" onClick={showDirections}>Directions<ChevronUp size={14} /></button></div>}
           {selectedFacility && <div className="facility-detail" role="region" aria-label="Selected facility"><button type="button" className="detail-close icon-button" aria-label="Close facility details" onClick={() => setSelectedFacility(undefined)}><X size={17} /></button><span className="facility-icon"><FacilityIcon category={selectedFacility.category} size={22} /></span><div><small>{facilityLabels[selectedFacility.category]} · {floorLabel(selectedFacility.floor)}</small><h3>{selectedFacility.name}</h3><p><Accessibility size={14} />Accessible via step-free connections</p><button type="button" className="text-button" onClick={() => { setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId }); }}>Route here<ArrowRight size={15} /></button></div></div>}
