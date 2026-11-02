@@ -7,6 +7,7 @@ test("ticket to accessible navigation follows a changed platform assignment",asy
  await booking(page);await page.getByLabel("Where are you starting?").selectOption("gate-1");
  await page.getByRole("button",{name:"Navigate to Platform 10",exact:true}).click();
  await expect(page.getByTestId("active-platform")).toHaveText("10");
+ await expect(page.locator(".next-direction")).toBeInViewport();
  const toggle=page.locator(".mobile-panel-toggle");if(await toggle.isVisible())await toggle.click();
  await page.getByRole("button",{name:"Switch to a step-free route"}).click();
  await expect(page.getByTestId("route-summary")).toContainText("Wheelchair");
