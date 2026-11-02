@@ -1,3 +1,4 @@
+import { validateStation } from "../src/lib/station/validate";
 import { describe, expect, it } from "vitest";
 import { findRoute, validateGraph } from "../src/lib/navigation/engine";
 import type { Rect, RoutePreference } from "../src/lib/navigation/types";
@@ -15,12 +16,13 @@ const inside = (x: number, y: number, rect: Rect) =>
 describe("RailNavi Demo Central", () => {
   it("has the documented station metrics and a valid graph", () => {
     expect(validateGraph(station)).toEqual([]);
+    expect(validateStation(station)).toEqual([]);
     expect(stationMetrics).toEqual({
-      platforms: 12, floors: 3, gates: 4, nodes: 154, edges: 237,
-      verticalConnections: 100, verticalLandings: 42, facilities: 48,
+      platforms: 20, floors: 5, gates: 8, nodes: 416, edges: 661,
+      verticalConnections: 270, verticalLandings: 112, facilities: 124,
     });
   });
-  it.each(journeys)("$gate → $platform using $preference is reachable and respects its constraints", ({ gate, platform, preference }) => {
+  it.each(journeys)("$gate â†’ $platform using $preference is reachable and respects its constraints", ({ gate, platform, preference }) => {
     const route = findRoute(station, gate, platform, { preference });
     expect(route.status).toBe("available");
     expect(route.nodes[0]?.id).toBe(gate);
