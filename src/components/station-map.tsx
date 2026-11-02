@@ -177,7 +177,7 @@ export function StationMap({
           const point = nodes.get(group.nodeId)!;
           const lift = group.kinds.has("lift");
           return <g key={group.nodeId} transform={`translate(${point.x} ${point.y})`} pointerEvents="none">
-            <title>{point.name}: {[...group.kinds].join(", ")}</title>
+            <title>{`${point.name}: ${[...group.kinds].join(", ")}`}</title>
             <rect x="-10" y="-10" width="20" height="20" rx="5" fill={lift ? "#e8f0fb" : "#f4eee1"} stroke={lift ? "#819fba" : "#b5a480"} />
             {lift ? <ArrowUpDown x="-6" y="-6" width="12" height="12" color="#3e6688" /> : <path d="M-6 5H-2V1H2V-3H6" fill="none" stroke="#88744e" strokeWidth="1.8" />}
           </g>;
