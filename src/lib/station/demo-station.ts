@@ -48,7 +48,7 @@ function vertical(column: string, prefix: string, x: number) {
     const otherId = `${column}-${suffix}-${floor}`;
     node(otherId, `${label} · ${prefix}`, x, y, floor, "landing");
     connect(groundId, otherId, `${label} · ${prefix}`, "stairs");
-    if (suffix !== "a") connect(groundId, otherId, `${label} · ${prefix}`, "lift");
+    if (suffix !== "a" || column === "west" || column === "east") connect(groundId, otherId, `${label} · ${prefix}`, "lift");
     if (suffix !== "u") connect(groundId, otherId, `${label} · ${prefix}`, "escalator", false);
   }
 }
