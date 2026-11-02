@@ -1,5 +1,5 @@
 /** Framework-independent station contract. Coordinates share one SVG plan; 1 unit = 0.5 m. */
-export type FloorId = -1 | 0 | 1;
+export type FloorId = -2 | -1 | 0 | 1 | 2;
 export type ConnectionType = "walk" | "stairs" | "escalator" | "lift";
 export type NodeType = "gate" | "junction" | "platform" | "landing" | "facility" | "checkpoint";
 export type FacilityCategory = "washroom" | "water" | "food" | "tea" | "shop" | "pharmacy" | "information" | "tickets" | "waiting" | "accessible" | "security";
@@ -64,6 +64,7 @@ export interface LocationAnchor {
   source: "manual" | "qr" | "ble";
 }
 export interface Station extends NavigationGraph {
+  geometry?: StationGeometry;
   id: string;
   name: string;
   fictional: true;
@@ -76,6 +77,25 @@ export interface Station extends NavigationGraph {
   facilities: Facility[];
   anchors: LocationAnchor[];
   corridors: (Rect & { floor: FloorId; name: string })[];
+}
+export interface StationRegion extends Rect {
+  id: string;
+  name: string;
+  floor: FloorId;
+  kind: "concourse" | "platform" | "bridge" | "underpass" | "interchange" | "track" | "restricted" | "entrance";
+}
+export interface StationLandmark extends Point {
+  id: string;
+  name: string;
+  floor: FloorId;
+  nodeId: string;
+  priority: number;
+}
+export interface StationGeometry {
+  boundary: Rect;
+  regions: StationRegion[];
+  landmarks: StationLandmark[];
+  platformGroups: { name: string; first: number; last: number }[];
 }
 export interface RoutingOptions {
   preference: RoutePreference;
