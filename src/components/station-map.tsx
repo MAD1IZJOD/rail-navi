@@ -178,8 +178,8 @@ export function StationMap({
           const lift = group.kinds.has("lift");
           return <g key={group.nodeId} transform={`translate(${point.x} ${point.y})`} pointerEvents="none">
             <title>{`${point.name}: ${[...group.kinds].join(", ")}`}</title>
-            <rect x="-10" y="-10" width="20" height="20" rx="5" fill={lift ? "#e8f0fb" : "#f4eee1"} stroke={lift ? "#819fba" : "#b5a480"} />
-            {lift ? <ArrowUpDown x="-6" y="-6" width="12" height="12" color="#3e6688" /> : <path d="M-6 5H-2V1H2V-3H6" fill="none" stroke="#88744e" strokeWidth="1.8" />}
+            <rect x="-17" y="-10" width="34" height="20" rx="5" fill={lift ? "#e8f0fb" : "#f4eee1"} stroke={lift ? "#819fba" : "#b5a480"} />
+            <text x="0" y="3" textAnchor="middle" className="vertical-bay-label">{[group.kinds.has("stairs") ? "S" : "", group.kinds.has("escalator") ? "E" : "", lift ? "L" : ""].filter(Boolean).join("·")}</text>
           </g>;
         })}
         {routeSegments.map(({ edge, from, to }) => <g key={edge.id} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#fff" strokeWidth="15" strokeLinecap="round" /><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#08795b" strokeWidth="8" strokeLinecap="round" /></g>)}
@@ -214,7 +214,7 @@ export function StationMap({
           <span className="tool-divider" />
           <button type="button" className="icon-button" aria-label="Reset map view" onClick={() => setView(base)}><Expand size={18} /></button>
         </div>
-        <div className="map-legend"><span><i className="legend-route" />Your route</span><span><ArrowUpDown size={13} />Lift</span><span><Accessibility size={13} />Step-free access</span></div>
+        <div className="map-legend"><span><i className="legend-route" />Your route</span><span><ArrowUpDown size={13} />S Stairs · E Escalator · L Lift</span><span><Accessibility size={13} />Step-free via lifts</span></div>
         <div className="map-hint"><Move size={13} /><span>Drag to pan · Scroll or pinch to zoom</span><ArrowUpRight size={14} /></div>
       </>}
     </div>
