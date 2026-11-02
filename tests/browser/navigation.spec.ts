@@ -49,6 +49,11 @@ test("Gate 1 to Platform 10 draws exactly the computed edges on each floor", asy
   await expect(page.getByTestId("route-summary")).toContainText(`${Math.round(expected.distanceMeters)}`);
   await expect(page.locator(".directions-list")).toContainText("escalator up to Level +1");
   await expect(page.locator(".directions-list")).toContainText("stairs down to Level 0");
+  if (await page.locator(".mobile-panel-toggle").isVisible()) await openPanel(page);
+  else await page.locator(".map-route-chip").getByRole("button", { name: "Directions" }).click();
+  await expect(page.getByRole("heading", { name: "Your way, step by step" })).toBeVisible();
+  await page.locator(".direction-step").filter({ hasText: "escalator up to Level +1" }).click();
+  await expect(page.getByRole("button", { name: "Show Level +1", exact: true })).toHaveAttribute("aria-pressed", "true");
   await verifySegments(page, expected);
   await page.getByRole("button", { name: "Show Level +1", exact: true }).click();
   await expect(page.getByTestId("floor-transition")).toHaveCount(2);
