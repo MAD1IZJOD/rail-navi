@@ -162,6 +162,6 @@ export const stationMetrics = {
   platforms: platforms.length, floors: demoStation.floors.length,
   gates: entrances.length, nodes: nodes.length, edges: edges.length,
   verticalConnections: edges.filter(e => e.kind !== "walk").length,
-  verticalLandings: nodes.filter(n => n.floor === 0 && n.type === "landing").length,
+  verticalLandings: new Set(edges.filter(e => e.kind !== "walk").map(e => e.from)).size,
   facilities: facilities.length,
 };
