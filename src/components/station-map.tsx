@@ -28,6 +28,30 @@ export function StationMap({
   const pointers = useRef(new Map<number, Point>());
   const patternId = useId().replaceAll(":", "");
   const zoom = station.width / view.width;
+  const cameraFrame = useRef<number>(0);
+  useEffect(() => () => cancelAnimationFrame(cameraFrame.current), []);
+  function recenter() {
+    cancelAnimationFrame(cameraFrame.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setView(base); return; }
+    const from = view;
+    const started = performance.now();
+    const frame = (now: number) => {
+      const t = Math.min(1, (now - started) / 320);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setView({ x: from.x * (1 - eased), y: from.y * (1 - eased), width: from.width + (base.width - from.width) * eased, height: from.height + (base.height - from.height) * eased });
+      if (t < 1) cameraFrame.current = requestAnimationFrame(frame);
+    };
+    cameraFrame.current = requestAnimationFrame(frame);
+  }
+  useEffect(() => {
+    if (!svgRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const animations: Animation[] = [svgRef.current.animate([{ opacity: .65 }, { opacity: 1 }], { duration: 220 })];
+    svgRef.current.querySelectorAll<SVGGeometryElement>('[data-testid="route-segment"] line:last-child').forEach(line => {
+      const length = line.getTotalLength();
+      animations.push(line.animate([{ strokeDasharray: String(length), strokeDashoffset: length }, { strokeDasharray: String(length), strokeDashoffset: 0 }], { duration: 550, easing: "cubic-bezier(.2,.7,.2,1)" }));
+    });
+    return () => animations.forEach(animation => animation.cancel());
+  }, [floor, route]);
   const nodes = useMemo(() => new Map(station.nodes.map(node => [node.id, node])), [station]);
   const landings = useMemo(() => {
     const groups = new Map<string, { nodeId: string; kinds: Set<string> }>();
@@ -212,7 +236,7 @@ export function StationMap({
           <span className="zoom-label" aria-live="polite">{Math.round(zoom * 100)}%</span>
           <button type="button" className="icon-button" aria-label="Zoom out" onClick={() => zoomAt(1 / 1.3)} disabled={zoom <= 1}><Minus size={19} /></button>
           <span className="tool-divider" />
-          <button type="button" className="icon-button" aria-label="Reset map view" onClick={() => setView(base)}><Expand size={18} /></button>
+          <button type="button" className="icon-button" aria-label="Reset map view" onClick={recenter}><Expand size={18} /></button>
         </div>
         <div className="map-legend"><span><i className="legend-route" />Your route</span><span><ArrowUpDown size={13} />S Stairs · E Escalator · L Lift</span><span><Accessibility size={13} />Step-free via lifts</span></div>
         <div className="map-hint"><Move size={13} /><span>Drag to pan · Scroll or pinch to zoom</span><ArrowUpRight size={14} /></div>
