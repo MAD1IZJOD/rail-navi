@@ -20,7 +20,6 @@ const preferences: { id: RoutePreference; name: string; description: string; ico
   { id: "wheelchair", name: "Wheelchair", description: "Lifts & step-free paths", icon: Accessibility },
   { id: "avoid-stairs", name: "Avoid stairs", description: "Escalators & lifts", icon: Layers3 },
 ];
-const nodeNames = new Map(station.nodes.map(node => [node.id, node.name]));
 const minutes = (seconds: number) => Math.max(1, Math.ceil(seconds / 60));
 
 export function StationNavigator() {
@@ -88,7 +87,7 @@ export function StationNavigator() {
       </header>
       <section className="station-strip">
         <div><div className="eyebrow">EXPLORE THE STATION <span className="demo-badge">FICTIONAL DEMO</span></div><h1>{station.name}</h1><p>12 platforms <span>·</span> 3 levels <span>·</span> One clear way forward</p></div>
-        <button type="button" className="quick-demo" onClick={quickDemo} disabled={computing}><Sparkles size={16} /><span>Try Gate 1 <ArrowRight size={13} /> Platform 10</span><ArrowUpRight size={17} /></button>
+        <button type="button" className="quick-demo" aria-label="Try Gate 1 to Platform 10" onClick={quickDemo} disabled={computing}><Sparkles size={16} /><span>Try Gate 1 <ArrowRight size={13} /> Platform 10</span><ArrowUpRight size={17} /></button>
       </section>
       <div className="navigation-workspace">
         <aside className={`navigation-panel ${expanded ? "panel-expanded" : ""}`} aria-label="Journey planner and directions">
