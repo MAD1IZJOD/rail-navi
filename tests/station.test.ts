@@ -16,8 +16,8 @@ describe("RailNavi Demo Central", () => {
   it("has the documented station metrics and a valid graph", () => {
     expect(validateGraph(station)).toEqual([]);
     expect(stationMetrics).toEqual({
-      platforms: 12, floors: 3, gates: 4, nodes: 154, edges: 235,
-      verticalConnections: 98, verticalLandings: 42, facilities: 48,
+      platforms: 12, floors: 3, gates: 4, nodes: 154, edges: 237,
+      verticalConnections: 100, verticalLandings: 42, facilities: 48,
     });
   });
   it.each(journeys)("$gate → $platform using $preference is reachable and respects its constraints", ({ gate, platform, preference }) => {
