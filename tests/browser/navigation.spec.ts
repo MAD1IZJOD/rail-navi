@@ -34,8 +34,8 @@ test.afterEach(async ({ page }) => {
 
 test("homepage introduces the fictional station and opens the working demo", async ({ page }, info) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Find your way. Catch your train." })).toBeVisible();
-  await expect(page.getByText("FICTIONAL STATION", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your train is waiting. We’ll show you the way." })).toBeVisible();
+  await expect(page.getByText("FICTIONAL STATION · WORKING DEMO", { exact: true })).toBeVisible();
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", await page.evaluate(() => window.innerWidth));
   await page.screenshot({ path: info.outputPath("homepage.png"), fullPage: true });
   await page.getByRole("link", { name: "Explore Demo Station", exact: true }).click();
