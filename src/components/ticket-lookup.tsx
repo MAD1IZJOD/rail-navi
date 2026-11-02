@@ -1,0 +1,26 @@
+"use client";
+import {useRef,useState} from "react";
+import {ArrowRight,Ticket,TrainFront,X,Search,MapPin} from "lucide-react";
+import {lookupTicket,searchTrains,type DemoTrain} from "@/lib/tickets/demo";
+import {demoStation} from "@/lib/station/demo-station";
+interface Props{trains:DemoTrain[];onClose:()=>void;onNavigate:(trainId:string,anchorId:string)=>void}
+export function TicketLookup({trains,onClose,onNavigate}:Props){
+ const [mode,setMode]=useState<"ticket"|"train">("ticket");
+ const [reference,setReference]=useState("");const [submitted,setSubmitted]=useState("");
+ const [search,setSearch]=useState("");const [selected,setSelected]=useState("");
+ const [anchor,setAnchor]=useState("gate-1");const [busy,setBusy]=useState(false);
+ const input=useRef<HTMLInputElement>(null);
+ const result=submitted?lookupTicket(submitted,trains):null;
+ const train=mode==="ticket"?(result?.status==="found"?result.train:undefined):trains.find(t=>t.id===selected);
+ const ticket=mode==="ticket"&&result?.status==="found"?result.ticket:undefined;
+ async function retrieve(){setBusy(true);await Promise.resolve();setSubmitted(reference);setBusy(false);}
+ return <div className="ticket-backdrop"><section className="ticket-dialog" role="dialog" aria-modal="true" aria-label="Find my platform" onKeyDown={e=>{if(e.key==="Escape")onClose();if(e.key==="Tab"){const els=e.currentTarget.querySelectorAll<HTMLElement>('button,input,select');const first=els[0],last=els[els.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
+ <header><span className="eyebrow">YOUR JOURNEY STARTS HERE</span><button className="icon-button" onClick={onClose} aria-label="Close ticket lookup" autoFocus><X size={20}/></button></header>
+ <h2>Where’s my train?</h2><p className="ticket-intro">Your platform. Your way there. All in one place.</p>
+ <div className="ticket-tabs"><button aria-pressed={mode==="ticket"} onClick={()=>{setMode("ticket");setSelected("");}}><Ticket size={18}/>Demo booking</button><button aria-pressed={mode==="train"} onClick={()=>{setMode("train");setSubmitted("");}}><Search size={18}/>Find a train</button></div>
+ <p className="synthetic-note">FICTIONAL DEMO · No real PNRs or passenger records</p>
+ {mode==="ticket"?<form onSubmit={e=>{e.preventDefault();void retrieve();}}><label htmlFor="booking-reference">Synthetic booking reference</label><div className="ticket-input-row"><input ref={input} id="booking-reference" autoComplete="off" spellCheck={false} placeholder="RN-DEMO-1001" value={reference} onChange={e=>{setReference(e.target.value);setSubmitted("");}}/><button className="button button-primary" disabled={busy||!reference.trim()}>{busy?"Finding…":"Find ticket"}<ArrowRight size={18}/></button></div><button type="button" className="sample-ticket" onClick={()=>{setReference("RN-DEMO-1001");setSubmitted("");input.current?.focus();}}>Try a sample · RN-DEMO-1001 <ArrowRight size={14}/></button></form>:<div><label htmlFor="train-search">Train name or demo number</label><input id="train-search" className="train-search" placeholder="Moonrise or RN2001" value={search} onChange={e=>{setSearch(e.target.value);setSelected("");}}/><div className="train-results">{searchTrains(search,trains).map(t=><button key={t.id} onClick={()=>setSelected(t.id)} aria-pressed={selected===t.id}><TrainFront size={19}/><span><strong>{t.name}</strong><small>{t.number} · {t.departure} · {t.status}</small></span><b>P{t.platformId.split("-")[1]}</b></button>)}{searchTrains(search,trains).length===0&&<p>No demo trains match. Try “Moonrise”.</p>}</div></div>}
+ {result&&result.status!=="found"&&<p className="ticket-error" role="alert">{result.message}</p>}
+ {train&&<div className="digital-ticket" key={train.id+train.platformId}><div className="ticket-topline"><TrainFront size={22}/><span>{train.number} · DEMO DEPARTURE</span><b>{train.status}</b></div><h3>{train.name}</h3><div className="ticket-journey"><span>{train.origin}</span><ArrowRight size={20}/><span>{train.destination}</span></div><div className="ticket-perforation"/><div className="ticket-details"><div><small>DEPARTURE</small><strong>{train.departure}</strong><small>Demo service day · IST</small></div><div><small>PLATFORM</small><strong className="ticket-platform" data-testid="ticket-platform">{train.platformId.split("-")[1]}</strong></div><div><small>COACH / SEAT</small><strong>{ticket?ticket.coach+" / "+ticket.seat:"Open search"}</strong><small>{ticket?.status??"No booking selected"}</small></div></div>{ticket&&<p className="ticket-passenger">{ticket.passenger} · Synthetic passenger</p>}<label htmlFor="ticket-origin"><MapPin size={15}/>Where are you starting?</label><select id="ticket-origin" value={anchor} onChange={e=>setAnchor(e.target.value)}>{demoStation.anchors.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select><button className="button button-primary" disabled={train.status==="cancelled"} onClick={()=>onNavigate(train.id,anchor)}>Navigate to Platform {train.platformId.split("-")[1]}<ArrowRight size={18}/></button>{train.status==="cancelled"&&<p role="alert">This demo train is cancelled. Select another departure.</p>}</div>}
+ <footer>Local synthetic data. No live railway connection.</footer></section></div>;
+}
