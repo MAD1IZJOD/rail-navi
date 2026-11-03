@@ -6,6 +6,7 @@ const synonyms:Record<FacilityCategory,string[]>={
  water:["water","drink","bottle","refill"],tea:["tea","coffee","chai","cafe"],food:["food","snack","snacks","restaurant","eat","meal","hungry","tiffin"],shop:["shop","store","convenience","essentials"],pharmacy:["pharmacy","medicine","chemist"],washroom:["washroom","toilet","restroom","bathroom","loo"],waiting:["waiting","lounge","rest","seating"],tickets:["ticket","ticketing","booking"],information:["information","help desk","enquiry","info"],accessible:["accessible","wheelchair","assistance"],security:["security","help","assistance"],charging:["charging","charge","power","battery"],luggage:["luggage","bags","baggage","cloakroom"],"first-aid":["first aid","first-aid","medical"],"lost-found":["lost","found","lost and found"],transit:["metro","transit","interchange","bus","taxi"],
 };
 const special:Record<string,{category:FacilityCategory;name:string}>={
+ "cross-a-0":{category:"charging",name:"Foot Overbridge A · Charge & rest"},
  "p1-help":{category:"lost-found",name:"Platform 1 · Lost-and-found desk"},
  "p4-help":{category:"first-aid",name:"Platform 4 · First-aid point"},
  "p7-help":{category:"charging",name:"Platform 7 · Charge & rest"},
