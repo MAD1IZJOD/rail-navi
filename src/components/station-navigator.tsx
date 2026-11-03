@@ -119,8 +119,8 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   }
   function quickDemo() {
     setActiveTrainId(""); setPlatformNotice("");
-    setOrigin("gate-1"); setDestination("p10-destination"); setPreference("fastest"); setBridgeClosed(false);
-    void calculate({ origin: "gate-1", destination: "p10-destination", preference: "fastest", bridgeClosed: false });
+    setOrigin("gate-1"); setDestination("p10-destination"); setPreference("fastest"); setBridgeClosed(false); setLiftsClosed(false); setCrossingOutage("");
+    void calculate({ origin: "gate-1", destination: "p10-destination", preference: "fastest", bridgeClosed: false, liftsClosed: false, crossingOutage: "" });
   }
   function inspect(facility: Facility) {
     setSelectedFacility(facility); setFloor(facility.floor);
@@ -165,7 +165,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
                 </div>
                 <p className="manual-note"><MapPin size={12} />Manually selected location Â· No GPS required</p>
                 <fieldset className="preference-field"><legend>MAKE IT YOUR WAY</legend><div className="preference-grid">{preferences.map(item => <label key={item.id} className={`preference-option ${preference === item.id ? "selected" : ""}`}><input type="radio" name="preference" value={item.id} checked={preference === item.id} onChange={() => { setPreference(item.id); invalidate(); }} /><item.icon size={17} /><span><strong>{item.name}</strong><small>{item.description}</small></span>{preference === item.id && <Check size={13} className="preference-check" />}</label>)}</div></fieldset>
-                <details className="simulation-settings"><summary>Passage availability <ChevronDown size={13} /></summary><label><input type="checkbox" checked={bridgeClosed} onChange={event => { changeAvailability("bridge", event.target.checked); }} />Simulate Bridge A closure</label><p>Closes the cross-station walkway. The engine finds another permitted connection.</p></details>
+                <details className="simulation-settings"><summary>Passage availability <ChevronDown size={13} /></summary><label><input type="checkbox" checked={bridgeClosed} onChange={event => { changeAvailability("bridge", event.target.checked); }} />Simulate Bridge A closure</label><label><input type="checkbox" checked={liftsClosed} onChange={event => changeAvailability("lifts", event.target.checked)} />Simulate lift outage</label><label>Station crossing availability<select aria-label="Station crossing availability" value={crossingOutage} onChange={event => changeCrossing(event.target.value)}><option value="">All other crossings available</option>{station.geometry?.regions.filter(r => (r.kind === "bridge" || r.kind === "underpass") && r.name !== "Foot Overbridge A").map(r => <option key={r.id} value={r.name}>{r.name} closed</option>)}</select></label><p>Shared demo availability applies to planning and live simulation. Restore connections here if no safe route exists.</p></details>
                 <button type="submit" className="button button-primary calculate-button" disabled={computing}>{computing ? <LoaderCircle size={18} className="spin" /> : <Navigation size={17} />} {computing ? "Calculating routeâ€¦" : available ? "Calculate again" : "Find my route"}<ArrowRight size={17} /></button>
               </form>
               {error && <div className="route-error" role="alert"><strong>Route unavailable</strong><p>{error}</p></div>}
