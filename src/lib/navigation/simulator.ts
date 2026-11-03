@@ -1,9 +1,11 @@
 import {findRoute,floorLabel} from "./engine";
-import type {FloorId,GeneratedRoute,NavigationGraph,NavigationNode,RoutingOptions} from "./types";
+import {planJourney} from "../journey/planner";
+import type {FloorId,GeneratedRoute,NavigationGraph,NavigationNode,RoutingOptions,JourneyStop,RouteVisit} from "./types";
 export interface SimPosition {x:number;y:number;floor:FloorId;heading:number;nodeId?:string;edgeId?:string}
-export interface ReplanRequest {destinationId:string;options:RoutingOptions;reason:string}
+export interface ReplanRequest {destinationId:string;options:RoutingOptions;reason:string;stops?:JourneyStop[]}
 export interface NavigationSession {
- status:"running"|"paused"|"arrived"|"blocked"|"stopped";
+ status:"running"|"paused"|"arrived"|"blocked"|"stopped"|"at-stop";
+ itinerary?:JourneyStop[];visitedStopIds?:string[];currentStop?:RouteVisit;
  route:GeneratedRoute;edgeIndex:number;edgeSeconds:number;speed:number;
  position:SimPosition;initialStartId:string;destinationId:string;options:RoutingOptions;
  traveledMeters:number;elapsedSeconds:number;revision:number;message:string;pending?:ReplanRequest;
@@ -13,8 +15,8 @@ const eligible=(kind:string,accessible:boolean,options:RoutingOptions)=>
  !(options.preference==="wheelchair"&&(!accessible||kind==="stairs"||kind==="escalator"))&&!(options.preference==="avoid-stairs"&&kind==="stairs");
 export function startSession(route:GeneratedRoute,speed=1):NavigationSession{
  if(route.status!=="available"||!route.nodes.length)throw new Error("A valid route is required");
- const first=route.nodes[0]!;
- return{status:route.edges.length?"running":"arrived",route,edgeIndex:0,edgeSeconds:0,speed,
+ const first=route.nodes[0]!,initialVisit=route.stopVisits?.find(v=>v.edgeIndex===0);
+ return{status:initialVisit?"at-stop":route.edges.length?"running":"arrived",itinerary:route.stopVisits?.map(({id,nodeId,name,dwellSeconds,available})=>({id,nodeId,name,dwellSeconds,available})),visitedStopIds:initialVisit?[initialVisit.id]:[],currentStop:initialVisit,route,edgeIndex:0,edgeSeconds:0,speed,
  position:{x:first.x,y:first.y,floor:first.floor,heading:0,nodeId:first.id},initialStartId:first.id,
  destinationId:route.nodes.at(-1)!.id,options:{preference:route.preference},traveledMeters:0,elapsedSeconds:0,revision:0,message:"Simulation started. This is not live positioning."};
 }
@@ -29,7 +31,7 @@ function atPosition(s:NavigationSession):SimPosition{
 export function advanceSession(s:NavigationSession,realSeconds:number,graph:NavigationGraph):NavigationSession{
  if(s.status!=="running"||realSeconds<=0||!Number.isFinite(realSeconds))return s;
  let next={...s},budget=realSeconds*s.speed;
- while(budget>1e-9&&next.edgeIndex<next.route.edges.length){
+ while(budget>1e-9&&next.edgeIndex<next.route.edges.length&&next.status==="running"){
   const edge=next.route.edges[next.edgeIndex]!,remaining=edge.durationSeconds-next.edgeSeconds,used=Math.min(budget,remaining);
   next.traveledMeters+=edge.distanceMeters*used/edge.durationSeconds;next.elapsedSeconds+=used;
   next.edgeSeconds+=used;budget-=used;
@@ -37,15 +39,17 @@ export function advanceSession(s:NavigationSession,realSeconds:number,graph:Navi
    next.edgeIndex++;next.edgeSeconds=0;next.position=atPosition(next);
    if(edge.kind!=="walk")next.message="Now on "+floorLabel(next.position.floor)+" via "+edge.kind+" at "+edge.label+".";
    if(next.pending){const request=next.pending;next=replanSession({...next,pending:undefined},graph,request);}
+   const visit=next.route.stopVisits?.find(v=>v.edgeIndex===next.edgeIndex&&!next.visitedStopIds?.includes(v.id));
+   if(visit){next.currentStop=visit;next.visitedStopIds=[...(next.visitedStopIds??[]),visit.id];next.status="at-stop";next.message="Arrived at "+visit.name+". Continue when you are ready; the platform remains your final destination.";}
   }else next.position=atPosition(next);
  }
- if(next.edgeIndex>=next.route.edges.length&&next.status!=="blocked"){
+ if(next.edgeIndex>=next.route.edges.length&&next.status!=="blocked"&&next.status!=="at-stop"){
   next.status="arrived";next.position=atPosition(next);next.message="You have arrived at "+next.route.nodes.at(-1)!.name+". Simulation complete.";
  }
  return next;
 }
 export function stepSession(s:NavigationSession,graph:NavigationGraph):NavigationSession{
- if(s.status==="arrived"||s.status==="blocked"||s.status==="stopped")return s;
+ if(s.status==="arrived"||s.status==="blocked"||s.status==="stopped"||s.status==="at-stop")return s;
  const edge=s.route.edges[s.edgeIndex];if(!edge)return s;
  const result=advanceSession({...s,status:"running",speed:1},edge.durationSeconds-s.edgeSeconds,graph);
  return{...result,speed:s.speed,status:result.status==="running"?"paused":result.status};
@@ -57,7 +61,7 @@ export function setSimulationSpeed(s:NavigationSession,speed:number):NavigationS
  return{...s,speed};
 }
 export function restartSession(s:NavigationSession,graph:NavigationGraph):NavigationSession{
- const route=findRoute(graph,s.initialStartId,s.destinationId,s.options);
+ const route=planJourney(graph,s.initialStartId,s.destinationId,s.itinerary??[],s.options);
  if(route.status!=="available")return{...s,status:"blocked",route,message:route.message};
  return{...startSession(route,s.speed),initialStartId:s.initialStartId,options:s.options,revision:s.revision+1};
 }
@@ -89,10 +93,11 @@ export function replanSession(s:NavigationSession,graph:NavigationGraph,request:
   augmented={nodes:[...graph.nodes,virtual],edges:[...graph.edges,...extra]};
  }
  const filtered={...augmented,edges:augmented.edges.map(e=>({...e,available:e.available&&(!blocked.has(rootId(e.id))||e.id.endsWith("::back"))}))};
- const route=findRoute(filtered,start,request.destinationId,{...request.options,blockedEdgeIds:[]});
- const next={...s,route,destinationId:request.destinationId,options:request.options,edgeIndex:0,edgeSeconds:0,revision:s.revision+1,pending:undefined,message:request.reason};
+ const itinerary=request.stops??s.itinerary??[],pendingStops=itinerary.filter(v=>!s.visitedStopIds?.includes(v.id));
+ const route=planJourney(filtered,start,request.destinationId,pendingStops,{...request.options,blockedEdgeIds:[]});
+ const next={...s,route,itinerary,destinationId:request.destinationId,options:request.options,edgeIndex:0,edgeSeconds:0,revision:s.revision+1,pending:undefined,message:request.reason};
  if(route.status!=="available")return{...next,status:"blocked",message:request.reason+" No safe route is available. Contact the Main information desk in this fictional demo."};
- return{...next,status:route.edges.length?(s.status==="running"?"running":"paused"):"arrived",position:{...s.position,nodeId:start}};
+ return{...next,status:s.status==="at-stop"?"at-stop":route.edges.length?(s.status==="running"?"running":"paused"):"arrived",position:{...s.position,nodeId:start}};
 }
 export function deviationChoices(s:NavigationSession,graph:NavigationGraph):string[]{
  const node=s.position.nodeId;if(!node||!graph.nodes.some(n=>n.id===node)||s.edgeSeconds>0)return[];
@@ -109,13 +114,22 @@ export function deviateSession(s:NavigationSession,graph:NavigationGraph,targetI
   pending:{destinationId:s.destinationId,options:s.options,reason:"Wrong turn detected at a valid junction. Route recalculated from your simulated position."},
   message:"Taking an alternate permitted path. Rerouting at the next decision point."};
 }
+export function continueVisit(s:NavigationSession):NavigationSession{
+ if(s.status!=="at-stop"||!s.currentStop)return s;
+ return{...s,status:"running",elapsedSeconds:s.elapsedSeconds+s.currentStop.dwellSeconds,currentStop:undefined,message:"Visit complete. Continuing towards the final destination."};
+}
 export function sessionGuidance(s:NavigationSession){
  const edge=s.route.edges[s.edgeIndex],fraction=edge?s.edgeSeconds/edge.durationSeconds:0;
  const remainingDistance=s.route.edges.slice(s.edgeIndex).reduce((v,e)=>v+e.distanceMeters,0)-(edge?.distanceMeters??0)*fraction;
- const remainingSeconds=s.route.edges.slice(s.edgeIndex).reduce((v,e)=>v+e.durationSeconds,0)-(edge?.durationSeconds??0)*fraction;
- const index=edge?s.route.instructions.findIndex(step=>step.edgeIds.includes(edge.id)):s.route.instructions.length-1;
+ const walkingSeconds=s.route.edges.slice(s.edgeIndex).reduce((v,e)=>v+e.durationSeconds,0)-(edge?.durationSeconds??0)*fraction;
+ const dwellSeconds=(s.route.stopVisits??[]).filter(v=>!s.visitedStopIds?.includes(v.id)).reduce((n,v)=>n+v.dwellSeconds,0)+(s.currentStop?.dwellSeconds??0);
+ let index=s.route.instructions.length-1,offset=0,end=s.route.edges.length;
+ for(let i=0;i<s.route.instructions.length;i++){
+  const step=s.route.instructions[i]!,next=offset+step.edgeIds.length;
+  if(s.status==="at-stop"&&step.kind==="arrive"&&step.nodeIds.includes(s.currentStop?.nodeId??"")){index=i;end=offset;break;}
+  if(s.edgeIndex>=offset&&s.edgeIndex<next){index=i;end=next;break;}offset=next;
+ }
  const current=s.route.instructions[index],upcoming=s.route.instructions[index+1];
- const decisionDistance=current?s.route.edges.slice(s.edgeIndex).filter(e=>current.edgeIds.includes(e.id)).reduce((v,e)=>v+e.distanceMeters,0)-(edge?.distanceMeters??0)*fraction:0;
- return{current,upcoming,remainingDistance:Math.max(0,remainingDistance),remainingSeconds:Math.max(0,remainingSeconds),decisionDistance:Math.max(0,decisionDistance),
- progress:s.route.distanceMeters?1-Math.max(0,remainingDistance)/s.route.distanceMeters:1};
+ const decisionDistance=s.route.edges.slice(s.edgeIndex,end).reduce((v,e)=>v+e.distanceMeters,0)-(edge?.distanceMeters??0)*fraction;
+ return{current,upcoming,remainingDistance:Math.max(0,remainingDistance),walkingSeconds:Math.max(0,walkingSeconds),dwellSeconds,remainingSeconds:Math.max(0,walkingSeconds)+dwellSeconds,decisionDistance:Math.max(0,decisionDistance),progress:s.route.distanceMeters?1-Math.max(0,remainingDistance)/s.route.distanceMeters:1};
 }
