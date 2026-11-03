@@ -35,6 +35,7 @@ test("ticket journey discovers real stops, optimizes, visits and reroutes to a c
  const order=await page.locator(".itinerary-list li:not(.final-destination) strong").allTextContents();
  const stops=order.map(name=>toJourneyStop([water,pharmacy].find(f=>f.name===name)!,19*3600+55*60));
  const expected=planJourney(station,"gate-2","p17-destination",stops,{preference:"fastest"});
+ await fold(page);
  for(const floor of [-2,-1,0,1,2] as FloorId[]){
   await page.getByRole("button",{name:`Show Level ${floor>0?"+":""}${floor}`,exact:true}).click();
   const actual=await page.getByTestId("route-segment").evaluateAll(els=>els.map(e=>e.getAttribute("data-edge-id")).sort());
@@ -88,4 +89,20 @@ test("facility discovery, detail sheets and timing layouts fit all six viewport 
   await expect(page.locator(".final-destination")).toContainText("Platform 17");expect(await page.evaluate(()=>document.body.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:info.outputPath(`itinerary-${width}.png`),animations:"disabled"});
  }
+});
+
+test("adding and removing a stop during movement preserves position, pause and the final platform",async({page})=>{
+ test.setTimeout(60000);await planned(page);
+ await page.getByRole("button",{name:"Start simulated navigation",exact:true}).click();
+ await discover(page,"water on my way");const card=page.locator(".discovery-result").first();const name=await card.locator("strong").innerText();await card.click();
+ const marker=page.getByTestId("passenger-marker"),before={x:Number(await marker.getAttribute("data-x")),y:Number(await marker.getAttribute("data-y"))};
+ await page.getByRole("button",{name:"Add stop · keep platform last",exact:true}).click();
+ await expect(page.getByTestId("simulation-status")).toHaveText("running");
+ const after={x:Number(await marker.getAttribute("data-x")),y:Number(await marker.getAttribute("data-y"))};expect(Math.hypot(after.x-before.x,after.y-before.y)).toBeLessThan(5);
+ await page.getByRole("button",{name:"Pause",exact:true}).click();const point={x:await marker.getAttribute("data-x"),y:await marker.getAttribute("data-y")};
+ await journey(page);await page.getByRole("button",{name:"Remove "+name,exact:true}).click();
+ await expect(page.getByTestId("simulation-status")).toHaveText("paused");await expect(marker).toHaveAttribute("data-x",point.x!);await expect(marker).toHaveAttribute("data-y",point.y!);
+ await expect(page.locator(".final-destination")).toContainText("Platform 17");await expect(page.locator(".itinerary-list li")).toHaveCount(1);
+ await fold(page);await page.getByText("Demo controls",{exact:true}).click();await page.getByLabel("Simulation speed",{exact:true}).selectOption("120");await page.getByText("Demo controls",{exact:true}).click();
+ await page.getByRole("button",{name:"Resume",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveText("arrived",{timeout:20000});
 });
