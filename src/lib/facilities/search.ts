@@ -1,7 +1,7 @@
 import {findRoute} from "../navigation/engine";
 import type {Facility,FacilityCategory,GeneratedRoute,JourneyStop,RoutingOptions,Station} from "../navigation/types";
 import type {PositionContext} from "../navigation/context";
-import {categoryNames,facilityAvailable,serviceSynonyms} from "./catalog";
+import {facilityAvailable,serviceSynonyms} from "./catalog";
 import {insertBestStop,planJourney} from "../journey/planner";
 export const ON_ROUTE_METRES=30,ON_ROUTE_SECONDS=45;
 export const normalizeSearch=(value:string)=>value.toLowerCase().normalize("NFKD").replace(/[’']/g,"").replace(/[^a-z0-9+\-\s]/g," ").replace(/\s+/g," ").trim();
@@ -9,7 +9,7 @@ export interface FacilityIntent {supported:boolean;category?:FacilityCategory;ac
 export function interpretQuery(query:string,category:FacilityCategory|"all"="all"):FacilityIntent{
  const q=normalizeSearch(query),accessible=/accessible|wheelchair|step free/.test(q);
  const matches=(Object.keys(serviceSynonyms) as FacilityCategory[]).filter(c=>serviceSynonyms[c].some(word=>new RegExp("\\b"+word.replace("-","[- ]")+"\\b").test(q)));
- const chosen=category!=="all"?category:matches.find(c=>c!=="accessible")??matches[0];
+ const chosen=category!=="all"?category:matches.find(c=>c==="lost-found"||c==="first-aid")??matches.find(c=>c!=="accessible")??matches[0];
  const platform=q.match(/platform\s*(\d+)/),gate=q.match(/gate\s*(\d+)/),floor=q.match(/level\s*([+\-]?\d+)/);
  const supported=!!chosen;
  return{supported,category:chosen,accessible,onWay:/on (my|the) (way|route)|before my train/.test(q),nearest:/nearest|closest/.test(q),platform:platform?Number(platform[1]):undefined,gate:gate?Number(gate[1]):undefined,floor:floor?Number(floor[1]):undefined,message:supported?"Matches use modeled walking routes.":"Try a supported category such as water, coffee, pharmacy, washroom, charging or help desk."};
