@@ -65,7 +65,7 @@ export function restartSession(s:NavigationSession,graph:NavigationGraph):Naviga
  * If that connector fails, freeze honestly until availability is restored.
  */
 export function replanSession(s:NavigationSession,graph:NavigationGraph,request:ReplanRequest):NavigationSession{
- const occupied=s.route.edges[s.edgeIndex],root=occupied&&graph.edges.find(e=>e.id===rootId(occupied.id));
+ const occupied=s.route.edges[s.edgeIndex],root=graph.edges.find(e=>e.id===(occupied?rootId(occupied.id):s.position.edgeId));
  const blocked=new Set(request.options.blockedEdgeIds??[]);
  if(occupied&&occupied.kind!=="walk"&&s.edgeSeconds>0){
   const available=root?.available&&!blocked.has(root.id)&&eligible(root.kind,root.accessible,request.options);
