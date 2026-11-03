@@ -144,7 +144,11 @@ export function StationMap({children,station,floor,route,matchingFacilityIds,pre
    ((facilityCategory==="all"||f.category===facilityCategory)&&(!matchingFacilityIds||matchingFacilityIds.includes(f.id))&&
    (showFacilities||zoom>2.7||(zoom>1.7&&["information","accessible","security"].includes(f.category))))));
   const selected=placeLabels(all.map(f=>({id:f.id,text:"●",x:f.x,y:f.y,priority:f.id===selectedFacilityId?2000:f.category==="information"?500:100,kind:"facility"})),view,viewport,16);
-  return selected.map(l=>all.find(f=>f.id===l.id)!);
+  const visible:Facility[]=[],markerScale=Math.min(viewport.x/view.width,viewport.y/view.height);
+  for(const label of selected){const f=all.find(f=>f.id===label.id)!;
+   if(!visible.some(other=>Math.abs(f.x-other.x)*markerScale<47&&Math.abs(f.y-other.y)*markerScale<47))visible.push(f);
+  }
+  return visible;
  },[station,floor,facilityCategory,selectedFacilityId,showFacilities,matchingFacilityIds,zoom,view,viewport]);
  const segments=useMemo(()=>route?.status==="available"?route.edges.flatMap((edge,i)=>{
   const a=route.nodes[i]!,b=route.nodes[i+1]!;return a.floor===floor&&b.floor===floor?[{edge,a,b,index:i}]:[];
