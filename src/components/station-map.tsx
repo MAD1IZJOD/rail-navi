@@ -10,21 +10,23 @@ interface Props {
  children?:ReactNode;station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
  showFacilities?:boolean;facilityCategory?:FacilityCategory|"all";selectedFacilityId?:string;
  onFacilitySelect?:(facility:Facility)=>void;passenger?:SimPosition;passengerStatus?:string;
- unavailableEdgeIds?:readonly string[];destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
+ landmarkNodeId?:string;unavailableEdgeIds?:readonly string[];destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
 }
 const defaults={architecture:true,tracks:true,platforms:true,passages:true,connectors:true,facilities:true,labels:true,route:true,passenger:true,endpoints:true};
 const layerNames:Record<keyof typeof defaults,string>={architecture:"Station architecture",tracks:"Tracks (restricted)",platforms:"Platforms",passages:"Bridges & passages",connectors:"Stairs, escalators & lifts",facilities:"Facility markers",labels:"Map labels",route:"Active route",passenger:"Passenger marker",endpoints:"Start & destination"};
-export function StationMap({children,station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,unavailableEdgeIds,onPassengerFloor}:Props){
+export function StationMap({children,station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,landmarkNodeId,unavailableEdgeIds,onPassengerFloor}:Props){
  const [view,setView]=useState<Camera>({x:0,y:0,width:station.width,height:station.height});
  const [viewport,setViewport]=useState<Point>({x:1000,y:650});
  const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
  const svg=useRef<SVGSVGElement>(null),pointers=useRef(new Map<number,Point>()),frame=useRef(0);
- const positionRef=useRef(passenger),routeRef=useRef(route);
+ const positionRef=useRef(passenger),routeRef=useRef(route),cameraRef=useRef(view);
+ useEffect(()=>{cameraRef.current=view;},[view]);
  const dragged=useRef(false);
  const hasPassenger=!!passenger;
  const zoom=station.width/view.width,scale=Math.min(viewport.x/view.width,viewport.y/view.height);
  const nodes=useMemo(()=>new Map(station.nodes.map(n=>[n.id,n])),[station]);
  const destination=nodes.get(destinationId??"")??route?.nodes.at(-1),start=route?.nodes[0];
+ const decision=nodes.get(landmarkNodeId??"");
  useEffect(()=>{positionRef.current=passenger;},[passenger]);
  useEffect(()=>{routeRef.current=route;},[route]);
  useEffect(()=>{
@@ -36,14 +38,13 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  const moveCamera=useCallback((target:Camera)=>{
   cancelAnimationFrame(frame.current);
   if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){setView(target);return;}
-  setView(current=>{
+  const current=cameraRef.current;
    const started=performance.now();
    const animate=(now:number)=>{
     const t=Math.min(1,(now-started)/320),e=1-(1-t)**3;
     setView({x:current.x+(target.x-current.x)*e,y:current.y+(target.y-current.y)*e,width:current.width+(target.width-current.width)*e,height:current.height+(target.height-current.height)*e});
     if(t<1)frame.current=requestAnimationFrame(animate);
-   };frame.current=requestAnimationFrame(animate);return current;
-  });
+   };frame.current=requestAnimationFrame(animate);
  },[]);
  useEffect(()=>{
   if(!hasPassenger)return;
@@ -160,6 +161,7 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={f.name} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>{if(!dragged.current)onFacilitySelect?.(f);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
  <title>{f.name}</title><circle r={12/scale} fill={f.id===selectedFacilityId?"#10213B":"#FFF"} stroke="#8AA8C8" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/><FacilityIcon category={f.category} x={-7/scale} y={-7/scale} width={14/scale} height={14/scale} color={f.id===selectedFacilityId?"white":"#3F658E"}/></g>)}</g>}
  {layers.endpoints&&[{p:start,letter:"A",color:"#10213B",test:"start-marker"},{p:destination,letter:destination?.platformId?destination.platformId.split("-")[1]!:"B",color:"#2563EB",test:"destination-marker"}].map(({p,letter,color,test})=>p?.floor===floor?<g key={test} data-testid={test} transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={15/scale} fill="white"/><circle r={12/scale} fill={color}/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:11/scale,fontWeight:800}}>{letter}</text></g>:null)}
+ {decision?.floor===floor&&layers.labels&&<g data-testid="decision-landmark" pointerEvents="none"><circle cx={decision.x} cy={decision.y} r={19/scale} fill="none" stroke="#D99416" strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke"/><title>{decision.name}</title></g>}
  {layers.passenger&&passenger?.floor===floor&&<g data-testid="passenger-marker" data-x={passenger.x} data-y={passenger.y} data-floor={passenger.floor} className="passenger-position" transform={`translate(${passenger.x} ${passenger.y})`} pointerEvents="none">
  <title>Simulated passenger position. Not live positioning.</title><circle r={21/scale} fill="#2563EB" opacity=".13"/><circle r={13/scale} fill="white" stroke="#10213B" strokeWidth="2" vectorEffect="non-scaling-stroke"/><path d={`M0 ${-10/scale}L${7/scale} ${8/scale}L0 ${4/scale}L${-7/scale} ${8/scale}Z`} transform={`rotate(${passenger.heading})`} fill={passengerStatus==="arrived"?"#19BFA9":"#10213B"}/></g>}
  </svg>
