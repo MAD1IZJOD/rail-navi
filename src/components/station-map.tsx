@@ -36,14 +36,14 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  },[]);
  useEffect(()=>()=>cancelAnimationFrame(frame.current),[]);
  const moveCamera=useCallback((target:Camera)=>{
-  cancelAnimationFrame(frame.current);
+  cancelAnimationFrame(frame.current);frame.current=0;
   if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){setView(target);return;}
   const current=cameraRef.current;
    const started=performance.now();
    const animate=(now:number)=>{
     const t=Math.min(1,(now-started)/320),e=1-(1-t)**3;
     setView({x:current.x+(target.x-current.x)*e,y:current.y+(target.y-current.y)*e,width:current.width+(target.width-current.width)*e,height:current.height+(target.height-current.height)*e});
-    if(t<1)frame.current=requestAnimationFrame(animate);
+    if(t<1)frame.current=requestAnimationFrame(animate);else frame.current=0;
    };frame.current=requestAnimationFrame(animate);
  },[]);
  useEffect(()=>{
@@ -57,7 +57,7 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  useEffect(()=>{
   if(!hasPassenger||!follow||passengerStatus!=="running")return;
   const timer=setInterval(()=>{
-   const p=positionRef.current;if(!p)return;
+   const p=positionRef.current;if(!p||frame.current)return;
    setView(v=>{
     if(p.x>v.x+v.width*.25&&p.x<v.x+v.width*.75&&p.y>v.y+v.height*.25&&p.y<v.y+v.height*.75)return v;
     return constrainCamera({...v,x:v.x+(p.x-v.width/2-v.x)*.5,y:v.y+(p.y-v.height/2-v.y)*.5},station.width,station.height);
