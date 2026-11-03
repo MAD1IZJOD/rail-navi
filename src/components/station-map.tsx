@@ -126,12 +126,12 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
   return [...map].filter(([id])=>zoom>1.45||!nodes.get(id)!.id.startsWith("p"));
  },[station,nodes,floor,zoom]);
  const candidates:MapLabel[]=useMemo(()=>[
-  ...station.platforms.map(p=>({id:p.id,text:String(p.number),x:p.bounds.x+p.bounds.width/2,y:p.bounds.y+45,priority:destination?.platformId===p.id?990:600,kind:"platform" as const})),
+  ...station.platforms.map(p=>({id:p.id,text:String(p.number),x:p.bounds.x+p.bounds.width/2,y:Math.max(p.bounds.y+45,Math.min(p.bounds.y+p.bounds.height-25,view.y+68/scale)),priority:destination?.platformId===p.id?990:600,kind:"platform" as const})),
   ...station.entrances.flatMap(e=>{const n=nodes.get(e.nodeId)!;return floor===0?[{id:e.id,text:e.name,x:n.x,y:n.y-30,priority:850,kind:"gate" as const}]:[];}),
   ...station.corridors.filter(r=>r.floor===floor&&r.width>200).map((r,i)=>({id:"region-"+i,text:r.name,x:r.x+r.width/2,y:r.y-35,priority:800,kind:"region" as const})),
   ...(zoom>2.1?(geometry?.landmarks??[]).filter(l=>l.floor===floor).map(l=>({...l,text:l.name,kind:"landmark" as const})):[]),
   ...(floor===0&&zoom<1.6?(geometry?.platformGroups??[]).map((g,i)=>({id:"zone-"+i,text:g.name,x:(station.platforms[g.first-1]!.bounds.x+station.platforms[g.last-1]!.bounds.x)/2,y:155,priority:900,kind:"region" as const})):[]),
- ],[station,nodes,floor,geometry,zoom,destination?.platformId]);
+ ],[station,nodes,floor,geometry,zoom,destination?.platformId,view.y,scale]);
  const labels=useMemo(()=>placeLabels(candidates,view,viewport,12),[candidates,view,viewport]);
  const facilities=useMemo(()=>{
   const all=station.facilities.filter(f=>f.floor===floor&&(facilityCategory==="all"||f.category===facilityCategory)&&
