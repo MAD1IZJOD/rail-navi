@@ -45,7 +45,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [floor, setFloor] = useState<FloorId>(0);
   const [stops, setStops] = useState<JourneyStop[]>([]);
   const onVisit = useCallback((id: string) => setStops(current => current.filter(s => s.id !== id)), [setStops]);
-  const sim = useNavigationSimulation(station, setFloor, onVisit);
+  const sim = useNavigationSimulation(station, setFloor, onVisit, setStops);
   const [facilityAvailability, setFacilityAvailability] = useState<Record<string, boolean>>({});
   const [buffer, setBuffer] = useState(300);
   const [matchedIds, setMatchedIds] = useState<string[]>([]);
@@ -77,7 +77,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     void calculate({ stops: next, preference: nextPreference, reason: "Optional stops updated. Your final destination is preserved." });
   }
   function addStop(f: Facility, accessible = false) {
-    if (stops.some(s => s.id === f.id) || sim.session?.currentStop?.id === f.id) return;
+    if (stops.some(s => s.id === f.id) || sim.session?.visitedStopIds?.includes(f.id)) return;
     if (stops.length >= MAX_OPTIONAL_STOPS) { setPlatformNotice("Choose up to four optional stops. Remove one before adding another."); return; }
     const nextPreference = accessible ? "wheelchair" : preference;
     const opts = { ...options, preference: nextPreference };
@@ -150,7 +150,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     const pos = positionContext(station, fromId, override.origin ? null : sim.session, opts);
     const pending = override.stops ?? stops;
     const tentative = planJourney(pos.graph, pos.startId, chosenDestination, pending.map(s => ({...s, available: true})), opts);
-    let dwell = 0;
+    let dwell = override.origin ? 0 : sim.session?.currentStop?.dwellSeconds ?? 0;
     const ready = pending.map(stop => {
       const visit = tentative.stopVisits?.find(s => s.id === stop.id);
       const walking = tentative.edges.slice(0, visit?.edgeIndex ?? 0).reduce((n, e) => n + e.durationSeconds, 0);
@@ -190,7 +190,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     void calculate({ origin: "gate-1", destination: "p10-destination", preference: "fastest", bridgeClosed: false, liftsClosed: false, crossingOutage: "", stops: [] });
   }
   function inspect(facility: Facility, match?: FacilityMatch) {
-    const found = match ?? discoverFacilities({station, position: context, finalId: destination, stops, options, now: sim.nowSeconds, availability: facilityAvailability, query: facility.name}).results.find(r => r.facility.id === facility.id);
+    const found = match ?? discoverFacilities({station, position: context, finalId: destination, stops, options, now: sim.nowSeconds, availability: facilityAvailability, query: facility.name, departure: activeTrain ? serviceTime(activeTrain.departure) : undefined, buffer, remainingVisitSeconds: sim.session?.currentStop?.dwellSeconds}).results.find(r => r.facility.id === facility.id);
     setSelectedMatch(found); setSelectedFacility(facility); setFloor(facility.floor); setExpanded(false);
   }
   function showJourney() {
@@ -254,7 +254,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
               </section>}
               {!available && !error && !sim.session && <div className="route-empty"><div><RouteIcon size={24} /></div><h3>A clear path starts here.</h3><p>Select your starting point and platform.<br />We’ll connect the dots, safely.</p><button type="button" className="text-button" onClick={quickDemo}>Try the Gate 1 → Platform 10 journey<ArrowRight size={14} /></button></div>}
             </div> : <div role="tabpanel" id="facilities-tab" aria-labelledby="facilities-tab-button">
-              <FacilityDiscovery station={station} position={context} finalId={destination} stops={stops} options={options} now={sim.nowSeconds} availability={facilityAvailability} query={query} onQuery={setQuery} category={category} onCategory={setCategory} onInspect={inspect} onMatches={setMatchedIds}/>
+              <FacilityDiscovery station={station} position={context} finalId={destination} stops={stops} options={options} now={sim.nowSeconds} availability={facilityAvailability} departure={activeTrain ? serviceTime(activeTrain.departure) : undefined} buffer={buffer} remainingVisitSeconds={sim.session?.currentStop?.dwellSeconds} query={query} onQuery={setQuery} category={category} onCategory={setCategory} onInspect={inspect} onMatches={setMatchedIds}/>
             </div>}
             <div ref={journeyRef}><JourneyPlanning station={station} route={remainingRoute} direct={direct.status === "available" ? {...direct, durationSeconds: direct.durationSeconds + context.prefixSeconds} : direct} stops={stops} visited={sim.session?.visitedStopIds ?? []} currentStop={sim.session?.currentStop} finalName={routeEnd ?? station.nodes.find(n => n.id === destination)?.name ?? "Your platform"} now={sim.nowSeconds} departure={activeTrain?.departure} buffer={buffer} onBuffer={setBuffer} onClock={changeClock} onDeparture={activeTrain ? value => setTrains(current => current.map(t => t.id === activeTrain.id ? {...t, departure: value} : t)) : undefined} onRemove={id => updateStops(stops.filter(s => s.id !== id))} onMove={moveStop} onClear={() => updateStops([])} onOptimize={optimizeJourney} onDwell={(id, value) => { if (Number.isFinite(value) && value >= 0 && value <= 1800) updateStops(stops.map(s => s.id === id ? {...s, dwellSeconds: value} : s)); }} availability={facilityAvailability} onAvailability={setFacilityAvailable}/></div>
             <div className="panel-footnote"><ShieldCheck size={14} />Synthetic station data. Real routing logic.</div>
@@ -272,7 +272,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
           <SimulationControls controller={sim} route={route} station={station} options={{preference, blockedEdgeIds: blockedIds}} bridgeClosed={bridgeClosed} liftsClosed={liftsClosed} crossingOutage={crossingOutage} onCrossing={changeCrossing} onBridge={closed => changeAvailability("bridge", closed)} onLifts={closed => changeAvailability("lifts", closed)} />
           {available && <div className="next-direction" key={route.edges.map(e => e.id).join("|")}><span className="next-arrow"><Navigation size={24}/></span><div><small>{sim.session?.status === "arrived" ? "ARRIVED" : "YOUR NEXT DIRECTION"} · {floorLabel(sim.session?.position.floor ?? route.instructions[0]!.floor)}</small><strong>{guidance?.current?.text ?? route.instructions[0]?.text}</strong><p>{Math.round(guidance?.remainingDistance ?? route.distanceMeters)} m · {minutes(guidance?.remainingSeconds ?? (route.durationSeconds + (route.dwellSeconds ?? 0)))} min · {routeEnd}</p>{guidance && <p className="upcoming-direction">{Math.round(guidance.decisionDistance)} m to next decision · Then: {guidance.upcoming?.text ?? "Arrival"}</p>}</div></div>}
           {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes((route.durationSeconds + (route.dwellSeconds ?? 0)))} min</strong> to {routeEnd}</span><button type="button" onClick={showDirections}>Directions<ChevronUp size={14} /></button></div>}
-          {selectedFacility && <FacilityDetails facility={selectedFacility} match={selectedMatch} now={sim.nowSeconds} availability={facilityAvailability} trainActive={!!activeTrain} pending={stops.some(s => s.id === selectedFacility.id) || sim.session?.currentStop?.id === selectedFacility.id} onClose={() => {setSelectedFacility(undefined); setSelectedMatch(undefined);}} onAdd={accessible => addStop(selectedFacility, accessible)} onMain={() => { setActiveTrainId(""); setPlatformNotice(""); setStops([]); setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId, stops: [] }); }}/>}
+          {selectedFacility && <FacilityDetails facility={selectedFacility} match={selectedMatch} now={sim.nowSeconds} availability={facilityAvailability} trainActive={!!activeTrain} visited={sim.session?.visitedStopIds?.includes(selectedFacility.id)} pending={stops.some(s => s.id === selectedFacility.id) || sim.session?.currentStop?.id === selectedFacility.id} onClose={() => {setSelectedFacility(undefined); setSelectedMatch(undefined);}} onAdd={accessible => addStop(selectedFacility, accessible)} onMain={() => { setActiveTrainId(""); setPlatformNotice(""); setStops([]); setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId, stops: [] }); }}/>}
           <div className="station-disclaimer">Demonstration station · No live railway or passenger data</div>
         </section>
       </div>
