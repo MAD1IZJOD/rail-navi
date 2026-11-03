@@ -1,4 +1,4 @@
-import {findRoute} from "./engine";
+import {findRoute,floorLabel} from "./engine";
 import type {FloorId,GeneratedRoute,NavigationGraph,NavigationNode,RoutingOptions} from "./types";
 export interface SimPosition {x:number;y:number;floor:FloorId;heading:number;nodeId?:string;edgeId?:string}
 export interface ReplanRequest {destinationId:string;options:RoutingOptions;reason:string}
@@ -35,6 +35,7 @@ export function advanceSession(s:NavigationSession,realSeconds:number,graph:Navi
   next.edgeSeconds+=used;budget-=used;
   if(next.edgeSeconds>=edge.durationSeconds-1e-8){
    next.edgeIndex++;next.edgeSeconds=0;next.position=atPosition(next);
+   if(edge.kind!=="walk")next.message="Now on "+floorLabel(next.position.floor)+" via "+edge.kind+" at "+edge.label+".";
    if(next.pending){const request=next.pending;next=replanSession({...next,pending:undefined},graph,request);}
   }else next.position=atPosition(next);
  }
