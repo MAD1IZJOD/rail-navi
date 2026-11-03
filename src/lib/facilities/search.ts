@@ -9,7 +9,8 @@ export interface FacilityIntent {supported:boolean;category?:FacilityCategory;ac
 export function interpretQuery(query:string,category:FacilityCategory|"all"="all"):FacilityIntent{
  const q=normalizeSearch(query),accessible=/accessible|wheelchair|step free/.test(q);
  const matches=(Object.keys(serviceSynonyms) as FacilityCategory[]).filter(c=>serviceSynonyms[c].some(word=>new RegExp("\\b"+word.replace("-","[- ]")+"\\b").test(q)));
- const chosen=category!=="all"?category:matches.find(c=>c==="lost-found"||c==="first-aid")??matches.find(c=>c!=="accessible")??matches[0];
+ const action=/book me|order online|checkout|pay for|deliver to|track my/.test(q);
+ const chosen=action?undefined:category!=="all"?category:matches.find(c=>c==="lost-found"||c==="first-aid")??matches.find(c=>c!=="accessible")??matches[0];
  const platform=q.match(/platform\s*(\d+)/),gate=q.match(/gate\s*(\d+)/),floor=q.match(/level\s*([+\-]?\d+)/);
  const supported=!!chosen;
  return{supported,category:chosen,accessible,onWay:/on (my|the) (way|route)|before my train/.test(q),nearest:/nearest|closest/.test(q),platform:platform?Number(platform[1]):undefined,gate:gate?Number(gate[1]):undefined,floor:floor?Number(floor[1]):undefined,message:supported?"Matches use modeled walking routes.":"Try a supported category such as water, coffee, pharmacy, washroom, charging or help desk."};
