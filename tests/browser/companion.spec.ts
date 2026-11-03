@@ -24,7 +24,7 @@ async function add(page:Page,q:string):Promise<Facility>{
  await expect(details).toHaveCount(0);await expect(page.getByTestId("active-platform")).toHaveText("17");
  return f;
 }
-async function journey(page:Page){await fold(page);await page.locator(".journey-status-strip").click();await expect(page.getByRole("heading",{name:"Useful stops. Platform last."})).toBeVisible();}
+async function journey(page:Page){await fold(page);await page.locator(".journey-status-strip").click();const heading=page.getByRole("heading",{name:"Useful stops. Platform last."});await expect(heading).toBeInViewport({ratio:1});await expect.poll(async()=>{const h=await heading.boundingBox(),tabs=await page.getByRole("tablist",{name:"Station tools"}).boundingBox();return !!h&&!!tabs&&h.y>=tabs.y+tabs.height;}).toBe(true);}
 async function fold(page:Page){const toggle=page.locator(".mobile-panel-toggle");if(await toggle.isVisible()&&await toggle.getAttribute("aria-expanded")==="true")await toggle.click();}
 test("ticket journey discovers real stops, optimizes, visits and reroutes to a changed platform",async({page},info)=>{
  test.setTimeout(90000);const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("console",m=>{if(m.type()==="error")errors.push(m.text());});
