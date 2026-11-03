@@ -1,20 +1,20 @@
 "use client";
 
-import {useCallback,useEffect,useMemo,useRef,useState,type PointerEvent as PointerInput} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode,type PointerEvent as PointerInput} from "react";
 import {Expand,Layers3,LocateFixed,Minus,Plus,Route as RouteIcon} from "lucide-react";
 import type {Facility,FacilityCategory,FloorId,GeneratedRoute,Point,Station} from "@/lib/navigation/types";
 import type {SimPosition} from "@/lib/navigation/simulator";
 import {constrainCamera,fitPoints,mapPalette,placeLabels,type Camera,type MapLabel} from "@/lib/station/cartography";
 import {FacilityIcon} from "./facility-icon";
 interface Props {
- station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
+ children?:ReactNode;station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
  showFacilities?:boolean;facilityCategory?:FacilityCategory|"all";selectedFacilityId?:string;
  onFacilitySelect?:(facility:Facility)=>void;passenger?:SimPosition;passengerStatus?:string;
  destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
 }
 const defaults={architecture:true,tracks:true,platforms:true,passages:true,connectors:true,facilities:true,labels:true,route:true,passenger:true,endpoints:true};
 const layerNames:Record<keyof typeof defaults,string>={architecture:"Station architecture",tracks:"Tracks (restricted)",platforms:"Platforms",passages:"Bridges & passages",connectors:"Stairs, escalators & lifts",facilities:"Facility markers",labels:"Map labels",route:"Active route",passenger:"Passenger marker",endpoints:"Start & destination"};
-export function StationMap({station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,onPassengerFloor}:Props){
+export function StationMap({children,station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,onPassengerFloor}:Props){
  const [view,setView]=useState<Camera>({x:0,y:0,width:station.width,height:station.height});
  const [viewport,setViewport]=useState<Point>({x:1000,y:650});
  const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
@@ -158,6 +158,7 @@ export function StationMap({station,floor,route,preview=false,showFacilities=fal
  {layers.passenger&&passenger?.floor===floor&&<g data-testid="passenger-marker" data-x={passenger.x} data-y={passenger.y} data-floor={passenger.floor} className="passenger-position" transform={`translate(${passenger.x} ${passenger.y})`} pointerEvents="none">
  <title>Simulated passenger position. Not live positioning.</title><circle r={21/scale} fill="#2563EB" opacity=".13"/><circle r={13/scale} fill="white" stroke="#10213B" strokeWidth="2" vectorEffect="non-scaling-stroke"/><path d={`M0 ${-10/scale}L${7/scale} ${8/scale}L0 ${4/scale}L${-7/scale} ${8/scale}Z`} transform={`rotate(${passenger.heading})`} fill={passengerStatus==="arrived"?"#19BFA9":"#10213B"}/></g>}
  </svg>
+ {children}
  {!preview&&<>
  <details className="map-layer-control"><summary aria-label="Map layers"><Layers3 size={17}/><span>Layers</span></summary><fieldset><legend>Map layers</legend>{(Object.keys(defaults) as (keyof typeof defaults)[]).map(key=><label key={key}><input type="checkbox" checked={layers[key]} onChange={e=>setLayers(current=>({...current,[key]:e.target.checked}))}/>{layerNames[key]}</label>)}</fieldset></details>
  <div className="map-tools" aria-label="Map controls"><button className="icon-button" aria-label="Zoom in" disabled={zoom>=4.99} onClick={()=>zoomAt(1.3)}><Plus size={19}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button className="icon-button" aria-label="Zoom out" disabled={zoom<=1} onClick={()=>zoomAt(1/1.3)}><Minus size={19}/></button>
