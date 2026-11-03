@@ -305,3 +305,4 @@ button,select,summary{min-height:44px}button:active{transform:translateY(1px)}:f
 }
 @media(prefers-reduced-motion:reduce){.passenger-position{transition:none}}
 
+.advanced-simulation>div{bottom:calc(100% + 80px)}.upcoming-direction{color:#b8d1e9!important;max-width:620px}.simulation-settings select{width:100%;min-height:44px;background:#fff;border:1px solid #b9cee8;border-radius:6px;padding:8px;margin-top:6px}
