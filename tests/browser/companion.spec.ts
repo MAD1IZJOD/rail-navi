@@ -107,3 +107,14 @@ test("adding and removing a stop during movement preserves position, pause and t
  await page.getByRole("button",{name:"Resume",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveText("arrived",{timeout:20000});
  await page.getByRole("button",{name:"Stop navigation",exact:true}).click();await expect(page.getByTestId("route-summary")).toHaveCount(0);await expect(page.getByTestId("route-segment")).toHaveCount(0);
 });
+
+test("an individual lift closure finds another accessible route without changing the passenger position",async({page})=>{
+ test.setTimeout(60000);await planned(page);const toggle=page.locator(".mobile-panel-toggle");if(await toggle.isVisible())await toggle.click();
+ await page.getByRole("button",{name:"Switch to a step-free route",exact:true}).click();await fold(page);
+ await page.getByRole("button",{name:"Start simulated navigation",exact:true}).click();await page.getByRole("button",{name:"Pause",exact:true}).click();
+ const marker=page.getByTestId("passenger-marker"),point={x:await marker.getAttribute("data-x"),y:await marker.getAttribute("data-y")};
+ await page.getByText("Demo controls",{exact:true}).click();const control=page.getByLabel("Crossing outage",{exact:true});const lift=await control.locator('option[value^="lift:"]').first().getAttribute("value");expect(lift).toBeTruthy();await control.selectOption(lift!);
+ await expect(page.getByTestId("simulation-status")).toHaveText("paused");await expect(page.locator(".simulation-feedback")).toContainText("Lift at");await expect(marker).toHaveAttribute("data-x",point.x!);await expect(marker).toHaveAttribute("data-y",point.y!);
+ await expect(page.locator(".directions-list")).toContainText("lift");await expect(page.locator(".directions-list")).not.toContainText("stairs");await expect(page.locator(".directions-list")).not.toContainText("escalator");await expect(page.getByTestId("active-platform")).toHaveText("17");
+ await page.getByLabel("Simulation speed",{exact:true}).selectOption("120");await page.getByText("Demo controls",{exact:true}).click();await page.getByRole("button",{name:"Resume",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveText("arrived",{timeout:20000});
+});
