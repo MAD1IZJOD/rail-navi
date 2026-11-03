@@ -1,10 +1,12 @@
 "use client";
 import {useEffect,useState} from "react";
-import type {FloorId,GeneratedRoute,NavigationGraph,RoutingOptions} from "@/lib/navigation/types";
-import {advanceSession,deviateSession,pauseSession,replanSession,restartSession,resumeSession,setSimulationSpeed,startSession,stepSession,type NavigationSession} from "@/lib/navigation/simulator";
+import type {FloorId,GeneratedRoute,NavigationGraph,RoutingOptions,JourneyStop} from "@/lib/navigation/types";
+import {advanceSession,continueVisit,deviateSession,pauseSession,replanSession,restartSession,resumeSession,setSimulationSpeed,startSession,stepSession,type NavigationSession} from "@/lib/navigation/simulator";
 
 export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:FloorId)=>void){
  const [session,setSession]=useState<NavigationSession|null>(null);
+ const [clockBase,setClockBase]=useState(19*3600+55*60);
+ const nowSeconds=clockBase+(session?.elapsedSeconds??0);
  const status=session?.status,positionFloor=session?.position.floor;
  useEffect(()=>{
   if(status!=="running")return;
@@ -13,15 +15,17 @@ export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:Flo
  },[graph,status]);
  useEffect(()=>{if(positionFloor!==undefined&&status!=="stopped")onFloor(positionFloor);},[positionFloor,status,onFloor]);
  return{
-  session,
+  session,nowSeconds,
+  setClock:(seconds:number)=>{if(Number.isFinite(seconds)&&seconds>=0)setClockBase(seconds-(session?.elapsedSeconds??0));},
+  continueVisit:()=>setSession(s=>s?continueVisit(s):null),
   start:(route:GeneratedRoute,options:RoutingOptions)=>setSession({...startSession(route),options}),
-  stop:()=>setSession(null),
+  stop:()=>{setClockBase(b=>b+(session?.elapsedSeconds??0));setSession(null);},
   pause:()=>setSession(s=>s?pauseSession(s):null),
   resume:()=>setSession(s=>s?resumeSession(s):null),
-  restart:()=>setSession(s=>s?restartSession(s,graph):null),
+  restart:()=>{setClockBase(b=>b+(session?.elapsedSeconds??0));setSession(s=>s?restartSession(s,graph):null);},
   step:()=>setSession(s=>s?stepSession(s,graph):null),
   speed:(speed:number)=>setSession(s=>s?setSimulationSpeed(s,speed):null),
-  replan:(destinationId:string,options:RoutingOptions,reason:string)=>setSession(s=>s?replanSession(s,graph,{destinationId,options,reason}):null),
+  replan:(destinationId:string,options:RoutingOptions,reason:string,stops?:JourneyStop[])=>setSession(s=>s?replanSession(s,graph,{destinationId,options,reason,stops}):null),
   deviate:(target:string)=>setSession(s=>s?deviateSession(s,graph,target):null),
  };
 }
