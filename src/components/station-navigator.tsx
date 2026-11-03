@@ -245,6 +245,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
                   <div className="route-ready"><span className="status-dot" />YOUR ROUTE IS READY <span>{preferences.find(item => item.id === route.preference)?.name}</span></div>
                   <div className="route-numbers"><strong>{minutes(guidance?.remainingSeconds ?? (route.durationSeconds + (route.dwellSeconds ?? 0)))}<span> min</span></strong><i /><strong>{Math.round(route.distanceMeters)}<span> m</span></strong><small>{route.floorChanges.length} level changes</small></div>
                   <p><span className="summary-a">A</span>{route.nodes[0]?.name}<ArrowRight size={13} /><span className="summary-b">B</span>{routeEnd}</p>
+                  <button type="button" className="text-button" onClick={showJourney}><Clock3 size={15}/>View stops and timing<ArrowUpRight size={14}/></button>
                   {route.preference !== "wheelchair" && <button type="button" className="text-button" onClick={() => { setPreference("wheelchair"); void calculate({ preference: "wheelchair" }); }}><Accessibility size={15} />Switch to a step-free route<ArrowUpRight size={14} /></button>}
                 </div>
                 <div className="steps-heading"><h3>Your way, step by step</h3><span>{route.instructions.length} steps</span></div>
