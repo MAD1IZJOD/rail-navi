@@ -10,11 +10,11 @@ interface Props {
  children?:ReactNode;station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
  showFacilities?:boolean;facilityCategory?:FacilityCategory|"all";selectedFacilityId?:string;
  onFacilitySelect?:(facility:Facility)=>void;passenger?:SimPosition;passengerStatus?:string;
- destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
+ unavailableEdgeIds?:readonly string[];destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
 }
 const defaults={architecture:true,tracks:true,platforms:true,passages:true,connectors:true,facilities:true,labels:true,route:true,passenger:true,endpoints:true};
 const layerNames:Record<keyof typeof defaults,string>={architecture:"Station architecture",tracks:"Tracks (restricted)",platforms:"Platforms",passages:"Bridges & passages",connectors:"Stairs, escalators & lifts",facilities:"Facility markers",labels:"Map labels",route:"Active route",passenger:"Passenger marker",endpoints:"Start & destination"};
-export function StationMap({children,station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,onPassengerFloor}:Props){
+export function StationMap({children,station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,unavailableEdgeIds,onPassengerFloor}:Props){
  const [view,setView]=useState<Camera>({x:0,y:0,width:station.width,height:station.height});
  const [viewport,setViewport]=useState<Point>({x:1000,y:650});
  const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
@@ -104,14 +104,15 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  }
  const release=(e:PointerInput<SVGSVGElement>)=>pointers.current.delete(e.pointerId);
  const geometry=station.geometry;
+ const closedLabels=useMemo(()=>new Set(station.edges.filter(e=>unavailableEdgeIds?.includes(e.id)&&e.kind==="walk").map(e=>e.label)),[station,unavailableEdgeIds]);
  const architecture=useMemo(()=>(
   <g data-layer="architecture">
    {layers.architecture&&<rect {...(geometry?.boundary??{x:40,y:140,width:station.width-80,height:station.height-180})} rx="28" fill="#E9EEF5" stroke="#CFD9E6" strokeWidth="2"/>}
    {layers.tracks&&geometry?.regions.filter(r=>r.kind==="track").map(r=><g key={r.id} opacity={floor===0?1:.28}><rect x={r.x} y={r.y} width={r.width} height={r.height} fill={mapPalette.track}/>{zoom>2&&<path d={`M${r.x+4} ${r.y}v${r.height}M${r.x+8} ${r.y}v${r.height}`} stroke="#A7B5C6" strokeWidth="1"/>}</g>)}
    {layers.platforms&&station.platforms.map(p=><g key={p.id} opacity={floor===0?1:.42}><rect {...p.bounds} rx="6" fill={destination?.platformId===p.id?"#D9E8FF":"#FFF"} stroke={destination?.platformId===p.id?"#2563EB":"#C4D1DF"} strokeWidth={destination?.platformId===p.id?3:1.5}/>{floor===0&&zoom>1.5&&<path d={`M${p.bounds.x+4} ${p.bounds.y+8}v${p.bounds.height-16}M${p.bounds.x+p.bounds.width-4} ${p.bounds.y+8}v${p.bounds.height-16}`} stroke="#B6A572" strokeWidth="1" strokeDasharray="3 5"/>}</g>)}
-   {layers.passages&&station.corridors.filter(r=>r.floor===floor).map((r,i)=><rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} rx="8" fill={floor===0?"#FCFDFF":floor===-2?"#E6F4F1":"#DBE8F7"} stroke="#B5C8DE" strokeWidth="2"/>)}
+   {layers.passages&&station.corridors.filter(r=>r.floor===floor).map((r,i)=><rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} rx="8" fill={closedLabels.has(r.name)?"#FFF0CF":floor===0?"#FCFDFF":floor===-2?"#E6F4F1":"#DBE8F7"} stroke={closedLabels.has(r.name)?"#D69728":"#B5C8DE"} strokeDasharray={closedLabels.has(r.name)?"8 5":undefined} strokeWidth="2"/>)}
   </g>
- ),[geometry,station,zoom,floor,layers.architecture,layers.tracks,layers.platforms,layers.passages,destination?.platformId]);
+ ),[geometry,station,zoom,floor,layers.architecture,layers.tracks,layers.platforms,layers.passages,destination?.platformId,closedLabels]);
  const landings=useMemo(()=>{
   const map=new Map<string,Set<string>>();
   for(const e of station.edges.filter(e=>e.kind!=="walk"))for(const id of [e.from,e.to]){
