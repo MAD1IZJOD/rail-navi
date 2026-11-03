@@ -1,246 +1,173 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { ArrowUpRight, Expand, Minus, Plus, Move, Accessibility, ArrowUpDown } from "lucide-react";
-import type { Facility, FacilityCategory, FloorId, GeneratedRoute, Point, Station } from "@/lib/navigation/types";
-import { FacilityIcon } from "./facility-icon";
-
+import {useCallback,useEffect,useMemo,useRef,useState,type PointerEvent as PointerInput} from "react";
+import {Expand,Layers3,LocateFixed,Minus,Plus,Route as RouteIcon} from "lucide-react";
+import type {Facility,FacilityCategory,FloorId,GeneratedRoute,Point,Station} from "@/lib/navigation/types";
+import type {SimPosition} from "@/lib/navigation/simulator";
+import {constrainCamera,fitPoints,mapPalette,placeLabels,type Camera,type MapLabel} from "@/lib/station/cartography";
+import {FacilityIcon} from "./facility-icon";
 interface Props {
-  station: Station;
-  floor: FloorId;
-  route?: GeneratedRoute | null;
-  showFacilities?: boolean;
-  facilityCategory?: FacilityCategory | "all";
-  selectedFacilityId?: string;
-  onFacilitySelect?: (facility: Facility) => void;
-  preview?: boolean;
+ station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
+ showFacilities?:boolean;facilityCategory?:FacilityCategory|"all";selectedFacilityId?:string;
+ onFacilitySelect?:(facility:Facility)=>void;passenger?:SimPosition;passengerStatus?:string;
+ destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
 }
-interface ViewBox { x: number; y: number; width: number; height: number }
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-export function StationMap({
-  station, floor, route, showFacilities = false, facilityCategory = "all",
-  selectedFacilityId, onFacilitySelect, preview = false,
-}: Props) {
-  const base = { x: 0, y: 0, width: station.width, height: station.height };
-  const [view, setView] = useState<ViewBox>(base);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const pointers = useRef(new Map<number, Point>());
-  const patternId = useId().replaceAll(":", "");
-  const zoom = station.width / view.width;
-  const cameraFrame = useRef<number>(0);
-  useEffect(() => () => cancelAnimationFrame(cameraFrame.current), []);
-  function recenter() {
-    cancelAnimationFrame(cameraFrame.current);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setView(base); return; }
-    const from = view;
-    const started = performance.now();
-    const frame = (now: number) => {
-      const t = Math.min(1, (now - started) / 320);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setView({ x: from.x * (1 - eased), y: from.y * (1 - eased), width: from.width + (base.width - from.width) * eased, height: from.height + (base.height - from.height) * eased });
-      if (t < 1) cameraFrame.current = requestAnimationFrame(frame);
-    };
-    cameraFrame.current = requestAnimationFrame(frame);
+const defaults={architecture:true,tracks:true,platforms:true,passages:true,connectors:true,facilities:true,labels:true,route:true,passenger:true,endpoints:true};
+const layerNames:Record<keyof typeof defaults,string>={architecture:"Station architecture",tracks:"Tracks (restricted)",platforms:"Platforms",passages:"Bridges & passages",connectors:"Stairs, escalators & lifts",facilities:"Facility markers",labels:"Map labels",route:"Active route",passenger:"Passenger marker",endpoints:"Start & destination"};
+export function StationMap({station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,onPassengerFloor}:Props){
+ const [view,setView]=useState<Camera>({x:0,y:0,width:station.width,height:station.height});
+ const [viewport,setViewport]=useState<Point>({x:1000,y:650});
+ const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
+ const svg=useRef<SVGSVGElement>(null),pointers=useRef(new Map<number,Point>()),frame=useRef(0);
+ const positionRef=useRef(passenger),routeRef=useRef(route);
+ const hasPassenger=!!passenger;
+ const zoom=station.width/view.width,scale=Math.min(viewport.x/view.width,viewport.y/view.height);
+ const nodes=useMemo(()=>new Map(station.nodes.map(n=>[n.id,n])),[station]);
+ const destination=nodes.get(destinationId??"")??route?.nodes.at(-1),start=route?.nodes[0];
+ useEffect(()=>{positionRef.current=passenger;},[passenger]);
+ useEffect(()=>{routeRef.current=route;},[route]);
+ useEffect(()=>{
+  if(!svg.current)return;
+  const observer=new ResizeObserver(entries=>{const r=entries[0]?.contentRect;if(r)setViewport({x:r.width,y:r.height});});
+  observer.observe(svg.current);return()=>observer.disconnect();
+ },[]);
+ useEffect(()=>()=>cancelAnimationFrame(frame.current),[]);
+ const moveCamera=useCallback((target:Camera)=>{
+  cancelAnimationFrame(frame.current);
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){setView(target);return;}
+  setView(current=>{
+   const started=performance.now();
+   const animate=(now:number)=>{
+    const t=Math.min(1,(now-started)/320),e=1-(1-t)**3;
+    setView({x:current.x+(target.x-current.x)*e,y:current.y+(target.y-current.y)*e,width:current.width+(target.width-current.width)*e,height:current.height+(target.height-current.height)*e});
+    if(t<1)frame.current=requestAnimationFrame(animate);
+   };frame.current=requestAnimationFrame(animate);return current;
+  });
+ },[]);
+ useEffect(()=>{
+  if(!hasPassenger)return;
+  const task=requestAnimationFrame(()=>{
+   setFollow(true);
+   moveCamera(fitPoints(routeRef.current?.nodes??[],station.width,station.height,100));
+  });
+  return()=>cancelAnimationFrame(task);
+ },[hasPassenger,moveCamera,station.width,station.height]);
+ useEffect(()=>{
+  if(!hasPassenger||!follow||passengerStatus!=="running")return;
+  const timer=setInterval(()=>{
+   const p=positionRef.current;if(!p)return;
+   setView(v=>{
+    if(p.x>v.x+v.width*.25&&p.x<v.x+v.width*.75&&p.y>v.y+v.height*.25&&p.y<v.y+v.height*.75)return v;
+    return constrainCamera({...v,x:v.x+(p.x-v.width/2-v.x)*.5,y:v.y+(p.y-v.height/2-v.y)*.5},station.width,station.height);
+   });
+  },100);
+  return()=>clearInterval(timer);
+ },[hasPassenger,follow,passengerStatus,station.width,station.height]);
+ const zoomAt=useCallback((factor:number,client?:Point)=>{
+  cancelAnimationFrame(frame.current);setFollow(false);
+  const matrix=svg.current?.getScreenCTM();
+  const world=client&&matrix?new DOMPoint(client.x,client.y).matrixTransform(matrix.inverse()):undefined;
+  setView(v=>{
+   const width=Math.min(station.width,Math.max(station.width/5,v.width/factor)),ratio=width/v.width;
+   const anchor=world??{x:v.x+v.width/2,y:v.y+v.height/2};
+   return constrainCamera({x:anchor.x-(anchor.x-v.x)*ratio,y:anchor.y-(anchor.y-v.y)*ratio,width,height:width*station.height/station.width},station.width,station.height);
+  });
+ },[station.width,station.height]);
+ useEffect(()=>{
+  const element=svg.current;if(!element||preview)return;
+  const wheel=(event:WheelEvent)=>{event.preventDefault();zoomAt(event.deltaY<0?1.12:1/1.12,{x:event.clientX,y:event.clientY});};
+  element.addEventListener("wheel",wheel,{passive:false});return()=>element.removeEventListener("wheel",wheel);
+ },[preview,zoomAt]);
+ useEffect(()=>{
+  const element=svg.current;if(!element||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  const animations=[element.animate([{opacity:.55},{opacity:1}],{duration:180})];
+  element.querySelectorAll<SVGGeometryElement>('[data-testid="route-segment"] line:last-child').forEach(line=>{
+   const length=line.getTotalLength();animations.push(line.animate([{strokeDasharray:String(length),strokeDashoffset:length},{strokeDasharray:String(length),strokeDashoffset:0}],{duration:450,easing:"ease-out"}));
+  });
+  return()=>animations.forEach(a=>a.cancel());
+ },[floor,route]);
+ function down(e:PointerInput<SVGSVGElement>){
+  if(preview||(e.target as Element).closest("[data-map-item]"))return;
+  cancelAnimationFrame(frame.current);setFollow(false);
+  pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});e.currentTarget.setPointerCapture(e.pointerId);
+ }
+ function drag(e:PointerInput<SVGSVGElement>){
+  const previous=pointers.current.get(e.pointerId);if(!previous)return;
+  const before=[...pointers.current.values()];pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});const after=[...pointers.current.values()];
+  if(before.length===2&&after.length===2){
+   const distance=(p:Point[])=>Math.hypot(p[0]!.x-p[1]!.x,p[0]!.y-p[1]!.y);
+   if(distance(before)>2)zoomAt(distance(after)/distance(before),{x:(after[0]!.x+after[1]!.x)/2,y:(after[0]!.y+after[1]!.y)/2});
+  }else{
+   const rect=e.currentTarget.getBoundingClientRect();
+   setView(v=>{const k=Math.min(rect.width/v.width,rect.height/v.height);return constrainCamera({...v,x:v.x-(e.clientX-previous.x)/k,y:v.y-(e.clientY-previous.y)/k},station.width,station.height);});
   }
-  useEffect(() => {
-    if (!svgRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const animations: Animation[] = [svgRef.current.animate([{ opacity: .65 }, { opacity: 1 }], { duration: 220 })];
-    svgRef.current.querySelectorAll<SVGGeometryElement>('[data-testid="route-segment"] line:last-child').forEach(line => {
-      const length = line.getTotalLength();
-      animations.push(line.animate([{ strokeDasharray: String(length), strokeDashoffset: length }, { strokeDasharray: String(length), strokeDashoffset: 0 }], { duration: 550, easing: "cubic-bezier(.2,.7,.2,1)" }));
-    });
-    return () => animations.forEach(animation => animation.cancel());
-  }, [floor, route]);
-  const nodes = useMemo(() => new Map(station.nodes.map(node => [node.id, node])), [station]);
-  const landings = useMemo(() => {
-    const groups = new Map<string, { nodeId: string; kinds: Set<string> }>();
-    for (const edge of station.edges.filter(edge => edge.kind !== "walk")) {
-      for (const id of [edge.from, edge.to]) {
-        const node = nodes.get(id)!;
-        if (node.floor !== floor) continue;
-        const group = groups.get(id) ?? { nodeId: id, kinds: new Set<string>() };
-        group.kinds.add(edge.kind);
-        groups.set(id, group);
-      }
-    }
-    return [...groups.values()];
-  }, [station, floor, nodes]);
-
-  const zoomAt = useCallback((factor: number, client?: Point) => {
-    const svg = svgRef.current;
-    setView(current => {
-      let anchor = { x: current.x + current.width / 2, y: current.y + current.height / 2 };
-      if (svg && client) {
-        const matrix = svg.getScreenCTM();
-        if (matrix) {
-          const point = new DOMPoint(client.x, client.y).matrixTransform(matrix.inverse());
-          anchor = { x: point.x, y: point.y };
-        }
-      }
-      const width = clamp(current.width / factor, station.width / 4, station.width);
-      const ratio = width / current.width;
-      return {
-        x: clamp(anchor.x - (anchor.x - current.x) * ratio, -station.width * 0.2, station.width * 0.9),
-        y: clamp(anchor.y - (anchor.y - current.y) * ratio, -station.height * 0.2, station.height * 0.9),
-        width, height: width * station.height / station.width,
-      };
-    });
-  }, [station.width, station.height]);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg || preview) return;
-    const wheel = (event: WheelEvent) => {
-      event.preventDefault();
-      zoomAt(event.deltaY < 0 ? 1.12 : 1 / 1.12, { x: event.clientX, y: event.clientY });
-    };
-    svg.addEventListener("wheel", wheel, { passive: false });
-    return () => svg.removeEventListener("wheel", wheel);
-  }, [preview, zoomAt]);
-
-  const pointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (preview || (event.target as Element).closest("[data-map-item]")) return;
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const pointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const previous = pointers.current.get(event.pointerId);
-    if (!previous) return;
-    const before = [...pointers.current.values()];
-    pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    const after = [...pointers.current.values()];
-    if (before.length === 2 && after.length === 2) {
-      const distance = (points: Point[]) => Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y);
-      const oldDistance = distance(before);
-      if (oldDistance > 2) zoomAt(distance(after) / oldDistance, {
-        x: (after[0]!.x + after[1]!.x) / 2, y: (after[0]!.y + after[1]!.y) / 2,
-      });
-    } else {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setView(current => {
-        const scale = Math.min(rect.width / current.width, rect.height / current.height);
-        return {
-          ...current,
-          x: clamp(current.x - (event.clientX - previous.x) / scale, -station.width * 0.2, station.width * 0.9),
-          y: clamp(current.y - (event.clientY - previous.y) / scale, -station.height * 0.2, station.height * 0.9),
-        };
-      });
-    }
-  };
-  const release = (event: ReactPointerEvent<SVGSVGElement>) => pointers.current.delete(event.pointerId);
-  const visibleFacilities = station.facilities.filter(facility => facility.floor === floor &&
-    (facilityCategory === "all" || facility.category === facilityCategory) &&
-    (showFacilities || zoom > 1.6 || facility.id === selectedFacilityId));
-  const destination = route?.nodes.at(-1);
-  const start = route?.nodes[0];
-  const routeSegments = route?.status === "available" ? route.edges.flatMap((edge, i) => {
-    const from = route.nodes[i]!;
-    const to = route.nodes[i + 1]!;
-    return from.floor === floor && to.floor === floor ? [{ edge, from, to }] : [];
-  }) : [];
-  const transitions = route?.floorChanges.filter(change => change.fromFloor === floor || change.toFloor === floor) ?? [];
-
-  return (
-    <div className={`station-map ${preview ? "map-preview" : ""}`}>
-      <svg
-        ref={svgRef} viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}
-        className="map-svg" role="group"
-        aria-label={`Interactive station map, Level ${floor}, ${Math.round(zoom * 100)} percent zoom`}
-        tabIndex={preview ? -1 : 0}
-        onPointerDown={pointerDown} onPointerMove={pointerMove}
-        onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}
-        onKeyDown={event => {
-          if (preview || event.target !== event.currentTarget) return;
-          if (["+", "=", "-"].includes(event.key)) { event.preventDefault(); zoomAt(event.key === "-" ? 1 / 1.25 : 1.25); }
-          const delta: Record<string, Point> = { ArrowLeft: { x: -40, y: 0 }, ArrowRight: { x: 40, y: 0 }, ArrowUp: { x: 0, y: -40 }, ArrowDown: { x: 0, y: 40 } };
-          const offset = delta[event.key];
-          if (offset) { event.preventDefault(); setView(current => ({ ...current, x: current.x + offset.x, y: current.y + offset.y })); }
-        }}
-      >
-        <defs>
-          <pattern id={`grid-${patternId}`} width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#c6cdc5" opacity=".5" /></pattern>
-          <pattern id={`track-${patternId}`} width="12" height="14" patternUnits="userSpaceOnUse"><path d="M0 7H12" stroke="#a3aaa2" strokeWidth="3" /></pattern>
-        </defs>
-        <rect x="-1000" y="-1000" width="4000" height="4000" fill="#edf2f8" />
-        <rect x="0" y="0" width={station.width} height={station.height} fill={`url(#grid-${patternId})`} />
-        <text x="52" y="91" className="plan-eyebrow">RAILNAVI DEMO CENTRAL</text>
-        <text x="52" y="118" className="plan-subtitle">{floor === 0 ? "Concourse & platforms" : floor === 1 ? "Elevated pedestrian connections" : "Lower passenger passage"}</text>
-        <g transform="translate(1110 76)" aria-hidden="true"><path d="M0 28V0M-6 10L0 0L6 10" fill="none" stroke="#30423b" strokeWidth="2" /><text y="47" textAnchor="middle" className="map-small">N</text></g>
-        <rect x="40" y="150" width="1120" height="640" rx="28" fill="#e0e7f0" stroke="#c4d1e1" strokeWidth="2" />
-        <g opacity={floor === 0 ? 1 : 0.24}>
-          {Array.from({ length: 13 }, (_, i) => {
-            const x = 208 + i * 64;
-            return <g key={i}><rect x={x - 6} y="190" width="12" height="550" fill={`url(#track-${patternId})`} /><path d={`M${x - 4} 190V740M${x + 4} 190V740`} stroke="#9ca59b" strokeWidth="1.8" /></g>;
-          })}
-          {station.platforms.map(platform => (
-            <g key={platform.id}>
-              <rect {...platform.bounds} rx="7" fill={destination?.platformId === platform.id ? "#d8eaff" : "#fbfdff"} stroke={destination?.platformId === platform.id ? "#3b83dc" : "#bacde2"} strokeWidth="2" />
-              <path d={`M${platform.bounds.x + 4} 215V715M${platform.bounds.x + platform.bounds.width - 4} 215V715`} stroke="#d3b665" strokeWidth="1.5" strokeDasharray="3 5" />
-              <rect x={platform.bounds.x + 5} y="229" width="28" height="32" rx="5" fill={destination?.platformId === platform.id ? "#1255a8" : "#24486e"} />
-              <text x={platform.bounds.x + 19} y="251" textAnchor="middle" className="platform-number">{platform.number}</text>
-              <text x={platform.bounds.x + 19} y="697" textAnchor="middle" className="platform-bottom">{platform.number}</text>
-            </g>
-          ))}
-        </g>
-        {station.corridors.filter(c => c.floor === floor).map((corridor, i) => (
-          <rect key={i} x={corridor.x} y={corridor.y} width={corridor.width} height={corridor.height} rx="9" fill={floor === 1 ? "#d4e4ec" : floor === -1 ? "#dde9f6" : "#f8fbff"} stroke={floor === 1 ? "#a3bfcc" : "#b9cde2"} strokeWidth="2" />
-        ))}
-        {floor === 0 ? <>
-          {[300, 620].map((y, i) => <g key={y} pointerEvents="none"><rect x="110" y={y - 20} width="976" height="40" rx="8" fill="#d9e5e6" fillOpacity=".36" stroke="#94b0ba" strokeDasharray="5 6" /><text x="600" y={y - 29} textAnchor="middle" className="bridge-label">FOOT OVERBRIDGE {i ? "B" : "A"} Â· LEVEL +1</text></g>)}
-          <path d="M130 460H1066" stroke="#b0c5a5" strokeWidth="3" strokeDasharray="5 8" opacity=".5" />
-          <text x="600" y="445" textAnchor="middle" className="bridge-label">LOWER PASSAGE Â· LEVEL âˆ’1</text>
-          <text transform="translate(148 460) rotate(-90)" textAnchor="middle" className="concourse-label">MAIN CONCOURSE</text>
-          <text transform="translate(1084 460) rotate(-90)" textAnchor="middle" className="concourse-label">SECONDARY CONCOURSE</text>
-          {station.entrances.map(entrance => {
-            const point = nodes.get(entrance.nodeId)!;
-            return <g key={entrance.id}><rect x={point.x - 24} y={point.y - 15} width="48" height="30" rx="6" fill="#263e34" /><text x={point.x} y={point.y + 5} textAnchor="middle" className="gate-label">G{entrance.id.slice(-1)}</text><text x={point.x} y={point.y - 26} textAnchor="middle" className="map-small">{entrance.name.toUpperCase()}</text></g>;
-          })}
-        </> : station.corridors.filter(c => c.floor === floor).map(c => <text key={c.name} x={c.x + c.width / 2} y={c.y - 17} textAnchor="middle" className="bridge-label">{c.name.toUpperCase()}</text>)}
-        {landings.map(group => {
-          const point = nodes.get(group.nodeId)!;
-          const lift = group.kinds.has("lift");
-          return <g key={group.nodeId} transform={`translate(${point.x} ${point.y})`} pointerEvents="none">
-            <title>{`${point.name}: ${[...group.kinds].join(", ")}`}</title>
-            <rect x="-17" y="-10" width="34" height="20" rx="5" fill={lift ? "#e8f0fb" : "#f4eee1"} stroke={lift ? "#819fba" : "#b5a480"} />
-            <text x="0" y="3" textAnchor="middle" className="vertical-bay-label">{[group.kinds.has("stairs") ? "S" : "", group.kinds.has("escalator") ? "E" : "", lift ? "L" : ""].filter(Boolean).join("Â·")}</text>
-          </g>;
-        })}
-        {routeSegments.map(({ edge, from, to }) => <g key={edge.id} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#fff" strokeWidth="15" strokeLinecap="round" /><line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="#08795b" strokeWidth="8" strokeLinecap="round" /></g>)}
-        {visibleFacilities.map(facility => <g key={facility.id} data-map-item role="button" tabIndex={preview ? -1 : 0}
-          aria-label={facility.name} className="facility-pin" transform={`translate(${facility.x} ${facility.y})`}
-          onClick={() => onFacilitySelect?.(facility)}
-          onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onFacilitySelect?.(facility); } }}>
-          <title>{facility.name}</title>
-          <circle r={selectedFacilityId === facility.id ? 15 : 11} fill={selectedFacilityId === facility.id ? "#173e32" : "#fff"} stroke="#789482" strokeWidth="1.5" />
-          <FacilityIcon category={facility.category} x="-6" y="-6" width="12" height="12" color={selectedFacilityId === facility.id ? "#fff" : "#446454"} />
-        </g>)}
-        {transitions.map(change => {
-          const outgoing = change.fromFloor === floor;
-          const point = nodes.get(outgoing ? change.fromNodeId : change.toNodeId)!;
-          const otherFloor = outgoing ? change.toFloor : change.fromFloor;
-          return <g key={change.edgeId} data-testid="floor-transition" pointerEvents="none">
-            <circle cx={point.x} cy={point.y} r="15" fill="#fff" stroke="#08795b" strokeWidth="3" />
-            <text x={point.x} y={point.y + 5} textAnchor="middle" className="transition-letter">{change.kind === "lift" ? "L" : change.kind === "escalator" ? "E" : "S"}</text>
-            <rect x={point.x + 16} y={point.y - 28} width="65" height="21" rx="6" fill="#173e32" />
-            <text x={point.x + 48} y={point.y - 13} textAnchor="middle" className="transition-floor">{outgoing ? "TO" : "FROM"} {otherFloor > 0 ? "+" : ""}{otherFloor}</text>
-          </g>;
-        })}
-        {[{ point: start, label: "A", color: "#3e67bd" }, { point: destination, label: "B", color: "#08795b" }].map(({ point, label, color }) => point?.floor === floor ? <g key={label} data-testid={label === "A" ? "start-marker" : "destination-marker"} pointerEvents="none"><circle cx={point.x} cy={point.y} r="21" fill="#fff" opacity=".8" /><circle cx={point.x} cy={point.y} r="15" fill={color} stroke="#fff" strokeWidth="3" /><text x={point.x} y={point.y + 5} textAnchor="middle" className="marker-letter">{label}</text></g> : null)}
-        <g transform="translate(60 818)"><path d="M0 0H100M0 -4V4M100 -4V4" stroke="#5b6b5f" strokeWidth="2" /><text x="50" y="20" textAnchor="middle" className="map-small">50 m</text></g>
-        <text x="1140" y="831" textAnchor="end" className="map-small">FICTIONAL STATION Â· SCHEMATIC PLAN</text>
-      </svg>
-      {!preview && <>
-        <div className="map-tools" aria-label="Map controls">
-          <button type="button" className="icon-button" aria-label="Zoom in" onClick={() => zoomAt(1.3)} disabled={zoom >= 3.99}><Plus size={19} /></button>
-          <span className="zoom-label" aria-live="polite">{Math.round(zoom * 100)}%</span>
-          <button type="button" className="icon-button" aria-label="Zoom out" onClick={() => zoomAt(1 / 1.3)} disabled={zoom <= 1}><Minus size={19} /></button>
-          <span className="tool-divider" />
-          <button type="button" className="icon-button" aria-label="Reset map view" onClick={recenter}><Expand size={18} /></button>
-        </div>
-        <div className="map-legend"><span><i className="legend-route" />Your route</span><span><ArrowUpDown size={13} />S Stairs Â· E Escalator Â· L Lift</span><span><Accessibility size={13} />Step-free via lifts</span></div>
-        <div className="map-hint"><Move size={13} /><span>Drag to pan Â· Scroll or pinch to zoom</span><ArrowUpRight size={14} /></div>
-      </>}
-    </div>
-  );
+ }
+ const release=(e:PointerInput<SVGSVGElement>)=>pointers.current.delete(e.pointerId);
+ const geometry=station.geometry;
+ const architecture=useMemo(()=>(
+  <g data-layer="architecture">
+   {layers.architecture&&<rect {...(geometry?.boundary??{x:40,y:140,width:station.width-80,height:station.height-180})} rx="28" fill="#E9EEF5" stroke="#CFD9E6" strokeWidth="2"/>}
+   {layers.tracks&&geometry?.regions.filter(r=>r.kind==="track").map(r=><g key={r.id} opacity={floor===0?1:.28}><rect x={r.x} y={r.y} width={r.width} height={r.height} fill={mapPalette.track}/>{zoom>2&&<path d={`M${r.x+4} ${r.y}v${r.height}M${r.x+8} ${r.y}v${r.height}`} stroke="#A7B5C6" strokeWidth="1"/>}</g>)}
+   {layers.platforms&&station.platforms.map(p=><g key={p.id} opacity={floor===0?1:.42}><rect {...p.bounds} rx="6" fill={destination?.platformId===p.id?"#D9E8FF":"#FFF"} stroke={destination?.platformId===p.id?"#2563EB":"#C4D1DF"} strokeWidth={destination?.platformId===p.id?3:1.5}/>{floor===0&&zoom>1.5&&<path d={`M${p.bounds.x+4} ${p.bounds.y+8}v${p.bounds.height-16}M${p.bounds.x+p.bounds.width-4} ${p.bounds.y+8}v${p.bounds.height-16}`} stroke="#B6A572" strokeWidth="1" strokeDasharray="3 5"/>}</g>)}
+   {layers.passages&&station.corridors.filter(r=>r.floor===floor).map((r,i)=><rect key={i} x={r.x} y={r.y} width={r.width} height={r.height} rx="8" fill={floor===0?"#FCFDFF":floor===-2?"#E6F4F1":"#DBE8F7"} stroke="#B5C8DE" strokeWidth="2"/>)}
+  </g>
+ ),[geometry,station,zoom,floor,layers.architecture,layers.tracks,layers.platforms,layers.passages,destination?.platformId]);
+ const landings=useMemo(()=>{
+  const map=new Map<string,Set<string>>();
+  for(const e of station.edges.filter(e=>e.kind!=="walk"))for(const id of [e.from,e.to]){
+   const n=nodes.get(id)!;if(n.floor!==floor)continue;
+   const kinds=map.get(id)??new Set();kinds.add(e.kind);map.set(id,kinds);
+  }
+  return [...map].filter(([id])=>zoom>1.45||!nodes.get(id)!.id.startsWith("p"));
+ },[station,nodes,floor,zoom]);
+ const candidates:MapLabel[]=useMemo(()=>[
+  ...station.platforms.map(p=>({id:p.id,text:String(p.number),x:p.bounds.x+p.bounds.width/2,y:p.bounds.y+45,priority:destination?.platformId===p.id?990:600,kind:"platform" as const})),
+  ...station.entrances.flatMap(e=>{const n=nodes.get(e.nodeId)!;return floor===0?[{id:e.id,text:e.name,x:n.x,y:n.y-30,priority:850,kind:"gate" as const}]:[];}),
+  ...station.corridors.filter(r=>r.floor===floor&&r.width>200).map((r,i)=>({id:"region-"+i,text:r.name,x:r.x+r.width/2,y:r.y-35,priority:800,kind:"region" as const})),
+  ...(zoom>2.1?(geometry?.landmarks??[]).filter(l=>l.floor===floor).map(l=>({...l,text:l.name,kind:"landmark" as const})):[]),
+  ...(floor===0&&zoom<1.6?(geometry?.platformGroups??[]).map((g,i)=>({id:"zone-"+i,text:g.name,x:(station.platforms[g.first-1]!.bounds.x+station.platforms[g.last-1]!.bounds.x)/2,y:155,priority:900,kind:"region" as const})):[]),
+ ],[station,nodes,floor,geometry,zoom,destination?.platformId]);
+ const labels=useMemo(()=>placeLabels(candidates,view,viewport,12),[candidates,view,viewport]);
+ const facilities=useMemo(()=>{
+  const all=station.facilities.filter(f=>f.floor===floor&&(facilityCategory==="all"||f.category===facilityCategory)&&
+   (f.id===selectedFacilityId||showFacilities||zoom>2.7||(zoom>1.7&&["information","accessible","security"].includes(f.category))));
+  const selected=placeLabels(all.map(f=>({id:f.id,text:"●",x:f.x,y:f.y,priority:f.id===selectedFacilityId?2000:f.category==="information"?500:100,kind:"facility"})),view,viewport,16);
+  return selected.map(l=>all.find(f=>f.id===l.id)!);
+ },[station,floor,facilityCategory,selectedFacilityId,showFacilities,zoom,view,viewport]);
+ const segments=useMemo(()=>route?.status==="available"?route.edges.flatMap((edge,i)=>{
+  const a=route.nodes[i]!,b=route.nodes[i+1]!;return a.floor===floor&&b.floor===floor?[{edge,a,b}]:[];
+ }):[],[route,floor]);
+ const transitions=route?.floorChanges.filter(c=>c.fromFloor===floor||c.toFloor===floor)??[];
+ const font=12/scale;
+ return <div className={`station-map ${preview?"map-preview":""}`}>
+ <svg ref={svg} className="map-svg cartographic-map" viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`} role="group" aria-label={`Interactive station map, Level ${floor}, ${Math.round(zoom*100)} percent zoom`} tabIndex={preview?-1:0}
+ onPointerDown={down} onPointerMove={drag} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}
+ onKeyDown={e=>{if(e.target!==e.currentTarget||preview)return;if(["+","=","-"].includes(e.key)){e.preventDefault();zoomAt(e.key==="-"?1/1.25:1.25);}
+ const d:Record<string,Point>={ArrowLeft:{x:-40,y:0},ArrowRight:{x:40,y:0},ArrowUp:{x:0,y:-40},ArrowDown:{x:0,y:40}};if(d[e.key]){e.preventDefault();setFollow(false);const p=d[e.key]!;setView(v=>constrainCamera({...v,x:v.x+p.x,y:v.y+p.y},station.width,station.height));}}}>
+ <rect x="-1000" y="-1000" width={station.width+2000} height={station.height+2000} fill={mapPalette.canvas}/>
+ {architecture}
+ {layers.connectors&&<g data-layer="vertical-connectors">{landings.map(([id,kinds])=>{const p=nodes.get(id)!;return <g key={id} transform={`translate(${p.x} ${p.y})`}><title>{`${p.name}: ${[...kinds].join(", ")}`}</title><rect x="-16" y="-11" width="32" height="22" rx="5" fill="#F6F9FD" stroke="#97AFCA"/><text y="3" textAnchor="middle" className="vertical-bay-label">{[kinds.has("stairs")?"S":"",kinds.has("escalator")?"E":"",kinds.has("lift")?"L":""].filter(Boolean).join("·")}</text></g>;})}</g>}
+ {layers.labels&&<g data-layer="labels" pointerEvents="none">{labels.map(l=><g key={l.id} data-testid="map-label" data-priority={l.priority} transform={`translate(${l.x} ${l.y})`}>
+ {l.kind==="platform"&&<rect x={-Math.max(22,l.text.length*9)/scale/2} y={-11/scale} width={Math.max(22,l.text.length*9)/scale} height={22/scale} rx={5/scale} fill={destination?.platformId===l.id?"#2563EB":"#10213B"}/>}
+ <text textAnchor="middle" dominantBaseline="central" style={{fontSize:font,fontWeight:l.kind==="platform"?750:600,fill:l.kind==="platform"?"white":l.kind==="region"?"#486380":"#405B77"}}>{l.text}</text></g>)}</g>}
+ {layers.route&&<g data-layer="active-route">{segments.map(({edge,a,b})=><g key={edge.id} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="white" strokeWidth="12" strokeLinecap="round" vectorEffect="non-scaling-stroke"/><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#2563EB" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke"/></g>)}
+ {transitions.map(c=>{const p=nodes.get(c.fromFloor===floor?c.fromNodeId:c.toNodeId)??route?.nodes.find(n=>n.id===c.fromNodeId);if(!p)return null;return <g key={c.edgeId} data-testid="floor-transition" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={12/scale} fill="white" stroke="#2563EB" strokeWidth="2" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fontSize:11/scale,fontWeight:750,fill:"#1F5BCB"}}>{c.kind==="lift"?"L":c.kind==="stairs"?"S":"E"}</text></g>;})}</g>}
+ {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={f.name} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>onFacilitySelect?.(f)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
+ <title>{f.name}</title><circle r={12/scale} fill={f.id===selectedFacilityId?"#10213B":"#FFF"} stroke="#8AA8C8" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/><FacilityIcon category={f.category} x={-7/scale} y={-7/scale} width={14/scale} height={14/scale} color={f.id===selectedFacilityId?"white":"#3F658E"}/></g>)}</g>}
+ {layers.endpoints&&[{p:start,letter:"A",color:"#10213B",test:"start-marker"},{p:destination,letter:destination?.platformId?destination.platformId.split("-")[1]!:"B",color:"#2563EB",test:"destination-marker"}].map(({p,letter,color,test})=>p?.floor===floor?<g key={test} data-testid={test} transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={15/scale} fill="white"/><circle r={12/scale} fill={color}/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:11/scale,fontWeight:800}}>{letter}</text></g>:null)}
+ {layers.passenger&&passenger?.floor===floor&&<g data-testid="passenger-marker" data-x={passenger.x} data-y={passenger.y} data-floor={passenger.floor} className="passenger-position" transform={`translate(${passenger.x} ${passenger.y})`} pointerEvents="none">
+ <title>Simulated passenger position. Not live positioning.</title><circle r={21/scale} fill="#2563EB" opacity=".13"/><circle r={13/scale} fill="white" stroke="#10213B" strokeWidth="2" vectorEffect="non-scaling-stroke"/><path d={`M0 ${-10/scale}L${7/scale} ${8/scale}L0 ${4/scale}L${-7/scale} ${8/scale}Z`} transform={`rotate(${passenger.heading})`} fill={passengerStatus==="arrived"?"#19BFA9":"#10213B"}/></g>}
+ </svg>
+ {!preview&&<>
+ <details className="map-layer-control"><summary aria-label="Map layers"><Layers3 size={17}/><span>Layers</span></summary><fieldset><legend>Map layers</legend>{(Object.keys(defaults) as (keyof typeof defaults)[]).map(key=><label key={key}><input type="checkbox" checked={layers[key]} onChange={e=>setLayers(current=>({...current,[key]:e.target.checked}))}/>{layerNames[key]}</label>)}</fieldset></details>
+ <div className="map-tools" aria-label="Map controls"><button className="icon-button" aria-label="Zoom in" disabled={zoom>=4.99} onClick={()=>zoomAt(1.3)}><Plus size={19}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button className="icon-button" aria-label="Zoom out" disabled={zoom<=1} onClick={()=>zoomAt(1/1.3)}><Minus size={19}/></button>
+ <button className="icon-button" aria-label="Reset map view" onClick={()=>{setFollow(false);moveCamera({x:0,y:0,width:station.width,height:station.height});}}><Expand size={18}/></button>
+ <button className="icon-button" aria-label="Fit to route" disabled={!route?.nodes.length} onClick={()=>{setFollow(false);moveCamera(fitPoints(route?.nodes??[],station.width,station.height));}}><RouteIcon size={18}/></button>
+ {passenger&&<button className={`icon-button ${follow?"following":""}`} aria-label="Center on passenger" aria-pressed={follow} onClick={()=>{setFollow(true);onPassengerFloor?.(passenger.floor);const width=station.width/2.8;moveCamera(constrainCamera({x:passenger.x-width/2,y:passenger.y-width*station.height/station.width/2,width,height:width*station.height/station.width},station.width,station.height));}}><LocateFixed size={19}/></button>}
+ </div>
+ <div className="map-legend"><span><i className="legend-route"/>Route</span><span>S Stairs · E Escalator · L Lift</span></div>
+ <div className="map-hint">{hasPassenger?(follow?"Following simulated passenger":"Explore mode · Recenter to follow"):"Drag to pan · Pinch or scroll to zoom"}</div>
+ </>}
+ </div>;
 }
+
