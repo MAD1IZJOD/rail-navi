@@ -371,3 +371,19 @@ button,select,summary{min-height:44px}button:active{transform:translateY(1px)}:f
  .navigator .next-direction { min-height:78px; }.navigator .next-direction .upcoming-direction { display:none; }
 }
 @media(prefers-reduced-motion:reduce) { .companion-detail,.companion-discovery { animation:none; transition:none; } }
+
+/* Keep the first matching stop in view, including on narrow phones. */
+.companion-discovery.has-query .discovery-heading .eyebrow,.companion-discovery.has-query .discovery-heading p { display:none; }
+.companion-discovery.has-query .discovery-heading h2 { font-size:21px; line-height:1.3; margin:0; letter-spacing:-.5px; }
+.companion-discovery.has-query .discovery-heading br { display:none; }
+.companion-discovery.has-query .discovery-mode { margin-top:9px; }
+.companion-discovery .facility-chips { flex-wrap:nowrap; overflow-x:auto; padding-bottom:5px; margin:10px 0 0; scrollbar-width:thin; overscroll-behavior-x:contain; }
+.companion-discovery .facility-chips button { flex-shrink:0; white-space:nowrap; }
+.all-facility-types { border-bottom:1px solid #dae5ed; }
+.all-facility-types summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-size:11px; color:#426179; }
+.all-facility-types summary:after { content:"＋"; margin-left:auto; }.all-facility-types[open] summary:after { content:"−"; }
+.all-facility-types .category-label { margin-top:0; }.all-facility-types .category-select { margin-bottom:12px; }
+.companion-discovery .discovery-context { margin-top:3px; }.companion-discovery .search-explanation { font-size:11px; line-height:1.5; }
+.companion-discovery .facility-count { margin:9px 0 0; }.discovery-result .result-timing { color:#0b7565; }
+.companion-detail p.detail-timing { color:#087163; font-size:11px; line-height:1.5; }
+@media(max-width:760px) { .companion-discovery.has-query { padding-top:13px; }.companion-discovery.has-query .discovery-heading h2 { font-size:20px; }.companion-discovery .facility-search { margin-top:10px; }.companion-discovery .search-explanation { margin-top:0; } }
