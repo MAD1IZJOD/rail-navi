@@ -67,7 +67,7 @@ test("stop ordering, availability, timing warnings and assistance work without l
  const toggle=page.locator(".mobile-panel-toggle");if(await toggle.isVisible()&&await toggle.getAttribute("aria-expanded")==="false")await toggle.click();
  await page.getByRole("button",{name:"Remove "+pharmacy.name,exact:true}).click();await expect(page.getByTestId("route-summary")).toContainText("Platform 17");
  await journey(page);await page.getByRole("button",{name:"Clear optional stops",exact:true}).click();await journey(page);await expect(page.locator(".itinerary-list li")).toHaveCount(1);
- await page.getByRole("button",{name:"Facilities",exact:true}).click();await page.getByRole("button",{name:"Passenger assistance",exact:true}).click();
+ await page.getByRole("tab",{name:/Facilities/}).click();await page.getByRole("button",{name:"Passenger assistance",exact:true}).click();
  await page.getByRole("button",{name:"Find nearest help point",exact:true}).click();await expect(page.locator(".discovery-result").first()).toBeVisible();
  await page.locator(".discovery-result").first().click();await expect(page.getByRole("region",{name:"Selected facility"})).toContainText("Show accessible route");
  await page.getByRole("button",{name:"Show accessible route · add assistance stop",exact:true}).click();
