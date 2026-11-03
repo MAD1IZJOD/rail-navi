@@ -40,10 +40,11 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [floor, setFloor] = useState<FloorId>(0);
   const sim = useNavigationSimulation(station, setFloor);
   const [liftsClosed, setLiftsClosed] = useState(false);
+  const [crossingOutage, setCrossingOutage] = useState("");
   const [plannedRoute, setRoute] = useState<GeneratedRoute | null>(null);
   const route = sim.session?.route ?? plannedRoute;
   const guidance = sim.session ? sessionGuidance(sim.session) : null;
-  const blockedIds = [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : [])];
+  const blockedIds = [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === crossingOutage).map(e => e.id)];
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"directions" | "facilities">("directions");
@@ -63,6 +64,11 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     if (sim.session) void calculate({ ...(kind === "bridge" ? {bridgeClosed: closed} : {liftsClosed: closed}), reason: kind === "bridge" ? "Bridge A availability changed. Route recalculated from the passenger position." : "Lift availability changed. Accessible routing restrictions remain enforced." });
     else { setRoute(null); setError(""); }
   }
+  function changeCrossing(name: string) {
+    setCrossingOutage(name);
+    if (sim.session) void calculate({crossingOutage: name, reason: name ? name + " closed. Recalculating from your actual simulated position." : "Crossing restored. Route recalculated."});
+    else { setRoute(null); setError(""); }
+  }
   function navigateTrain(trainId: string, anchorId: string) {
     const train = trains.find(item => item.id === trainId);
     const platform = station.platforms.find(item => item.id === train?.platformId);
@@ -80,12 +86,12 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     setPlatformNotice(`Simulation: ${activeTrain.name} moved to Platform ${platform.number}. Route recalculated from your ${sim.session ? "current simulated position" : "selected checkpoint"}.`);
     void calculate({ destination: platform.nodeId, reason: "Platform assignment changed. Route recalculated from the current passenger position." });
   }
-  async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean; liftsClosed?: boolean; reason?: string } = {}) {
+  async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean; liftsClosed?: boolean; crossingOutage?: string; reason?: string } = {}) {
     const chosenOrigin = override.origin ?? origin;
     const chosenDestination = override.destination ?? destination;
     const chosenPreference = override.preference ?? preference;
     const closure = override.bridgeClosed ?? bridgeClosed;
-    const blocked = [...(closure ? bridgeAEdgeIds : []), ...((override.liftsClosed ?? liftsClosed) ? liftEdgeIds : [])];
+    const blocked = [...(closure ? bridgeAEdgeIds : []), ...((override.liftsClosed ?? liftsClosed) ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === (override.crossingOutage ?? crossingOutage)).map(e => e.id)];
     if (sim.session && !override.origin) {
       sim.replan(chosenDestination, { preference: chosenPreference, blockedEdgeIds: blocked }, override.reason ?? "Route recalculated from the current simulated position.");
       setExpanded(false); return;
@@ -192,10 +198,10 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
           {activeTrain && <div className="train-control"><span><strong>{activeTrain.name}</strong> Â· Platform <b data-testid="active-platform">{activeTrain.platformId.split("-")[1]}</b></span><details><summary>Simulate platform change</summary><label htmlFor="simulate-platform">Demo assignment</label><select id="simulate-platform" value={activeTrain.platformId} onChange={event => changePlatform(event.target.value)}>{station.platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></details></div>}
           <div className="map-topbar"><div><span className="status-dot" /><strong>{floorLabel(floor)}</strong><span>{station.floors.find(item => item.id === floor)?.name}</span></div><button type="button" className={`facilities-toggle ${tab === "facilities" ? "active" : ""}`} onClick={() => { setTab(tab === "facilities" ? "directions" : "facilities"); setExpanded(true); }}><MapPin size={15} /><span>Facilities</span></button></div>
           {bridgeClosed && <div className="closure-banner">Bridge A walkway closed Â· Routes use an alternative crossing</div>}
-          <StationMap station={station} floor={floor} route={sim.session?.status === "blocked" ? null : route} passenger={sim.session?.position} passengerStatus={sim.session?.status} destinationId={sim.session?.destinationId} showFacilities={tab === "facilities"} facilityCategory={category} selectedFacilityId={selectedFacility?.id} onFacilitySelect={inspect} onPassengerFloor={setFloor}>
+          <StationMap station={station} floor={floor} route={sim.session?.status === "blocked" ? null : route} passenger={sim.session?.position} passengerStatus={sim.session?.status} destinationId={sim.session?.destinationId} unavailableEdgeIds={blockedIds} showFacilities={tab === "facilities"} facilityCategory={category} selectedFacilityId={selectedFacility?.id} onFacilitySelect={inspect} onPassengerFloor={setFloor}>
           <div className="floor-switcher" aria-label="Select station level"><span>LEVELS</span>{station.floors.map(item => <button type="button" key={item.id} aria-label={`Show ${floorLabel(item.id)}`} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}><strong>{item.id > 0 ? "+" : ""}{item.id}</strong><span>{item.name}</span>{route?.nodes.some(node => node.floor === item.id) && <i className="floor-route-dot" />}</button>)}</div>
           </StationMap>
-          <SimulationControls controller={sim} route={route} station={station} options={{preference, blockedEdgeIds: blockedIds}} bridgeClosed={bridgeClosed} liftsClosed={liftsClosed} onBridge={closed => changeAvailability("bridge", closed)} onLifts={closed => changeAvailability("lifts", closed)} />
+          <SimulationControls controller={sim} route={route} station={station} options={{preference, blockedEdgeIds: blockedIds}} bridgeClosed={bridgeClosed} liftsClosed={liftsClosed} crossingOutage={crossingOutage} onCrossing={changeCrossing} onBridge={closed => changeAvailability("bridge", closed)} onLifts={closed => changeAvailability("lifts", closed)} />
           {available && <div className="next-direction" key={route.edges.map(e => e.id).join("|")}><span className="next-arrow"><Navigation size={24}/></span><div><small>YOUR NEXT DIRECTION Â· {floorLabel(route.instructions[0]!.floor)}</small><strong>{guidance?.current?.text ?? route.instructions[0]?.text}</strong><p>{Math.round(route.distanceMeters)} m Â· {minutes(route.durationSeconds)} min Â· {routeEnd}</p></div></div>}
           {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes(route.durationSeconds)} min</strong> to {routeEnd}</span><button type="button" onClick={showDirections}>Directions<ChevronUp size={14} /></button></div>}
           {selectedFacility && <div className="facility-detail" role="region" aria-label="Selected facility"><button type="button" className="detail-close icon-button" aria-label="Close facility details" onClick={() => setSelectedFacility(undefined)}><X size={17} /></button><span className="facility-icon"><FacilityIcon category={selectedFacility.category} size={22} /></span><div><small>{facilityLabels[selectedFacility.category]} Â· {floorLabel(selectedFacility.floor)}</small><h3>{selectedFacility.name}</h3><p><Accessibility size={14} />Accessible via step-free connections</p><button type="button" className="text-button" onClick={() => { setActiveTrainId(""); setPlatformNotice(""); setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId }); }}>Route here<ArrowRight size={15} /></button></div></div>}
