@@ -387,3 +387,6 @@ button,select,summary{min-height:44px}button:active{transform:translateY(1px)}:f
 .companion-discovery .facility-count { margin:9px 0 0; }.discovery-result .result-timing { color:#0b7565; }
 .companion-detail p.detail-timing { color:#087163; font-size:11px; line-height:1.5; }
 @media(max-width:760px) { .companion-discovery.has-query { padding-top:13px; }.companion-discovery.has-query .discovery-heading h2 { font-size:20px; }.companion-discovery .facility-search { margin-top:10px; }.companion-discovery .search-explanation { margin-top:0; } }
+
+/* Scroll destinations leave room for the sticky station-tool tabs. */
+.panel-content > div:has(> .journey-planning), .directions-section { scroll-margin-top:82px; }
