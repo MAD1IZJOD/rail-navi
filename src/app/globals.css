@@ -268,3 +268,40 @@ button,select,summary{min-height:44px}button:active{transform:translateY(1px)}:f
 @media(max-width:760px){.new-header .demo-label{display:block;max-width:145px;font-size:8px;line-height:1.6;letter-spacing:1px}.new-header>a:last-child{display:none}}
 .map-panel .next-direction{position:relative;top:auto;left:auto;right:auto;max-width:none;border-radius:0;margin:0;flex-shrink:0;padding:14px 22px;box-shadow:none}.map-route-chip{bottom:16px;left:auto;right:20px;max-width:none;background:none;border:0;box-shadow:none;padding:0}.map-route-chip>svg,.map-route-chip>span{display:none}.map-route-chip>button{background:#e7f2ff;color:#0b50ad}.map-panel .next-direction>div{padding-right:100px}@media(max-width:760px){.map-panel .next-direction{padding:13px 16px}.map-panel .next-direction>div{padding-right:0}.map-panel:has(.platform-notice) .next-direction{display:flex}.next-direction strong{font-size:13px}.map-route-chip{display:none}}
 .map-panel .next-direction{inset:auto!important}.ticket-dialog>header{position:sticky;top:-28px;z-index:3;background:#f8faff}@media(max-width:760px){.ticket-dialog>header{top:-20px}}
+
+/* Station 2.0 cartography and deterministic guidance. */
+:root{--railnav-dark:#10213B;--railnav-blue:#2563EB;--railnav-arrival:#19BFA9;--railnav-map:#F5F7FB;--railnav-caution:#F5A524}
+.station-map .floor-switcher{top:12px!important;right:12px;width:60px;padding:5px;border-radius:12px;background:#fff;box-shadow:0 3px 15px #10213b0b}
+.station-map .floor-switcher>span{font-size:8px;padding:4px 3px 7px;text-align:center}
+.station-map .floor-switcher button{min-height:44px;padding:6px;justify-content:center}
+.station-map .floor-switcher button>span{display:none}.station-map .floor-route-dot{position:absolute;right:2px;top:9px}
+.station-map .map-tools{left:12px;right:auto;bottom:37px;display:flex;flex-direction:row;gap:2px;padding:4px;box-shadow:0 4px 16px #10213b0d;border-color:#d4dfec;max-width:calc(100% - 24px)}
+.station-map .map-tools .icon-button{width:44px;height:44px;min-height:44px;flex-shrink:0}.map-tools .following{background:#e4efff;color:#2563eb}
+.station-map .map-legend{bottom:7px;left:12px;gap:12px;background:#ffffffdc;border:0;padding:5px 7px}.station-map .map-legend span{font-size:10px;color:#516981}.station-map .map-hint{top:18px;left:113px;right:85px;bottom:auto;font-size:10px;color:#58718c;text-align:left;pointer-events:none}
+.map-layer-control{position:absolute;top:12px;left:12px;z-index:9;font-size:12px}
+.map-layer-control summary{list-style:none;display:flex;align-items:center;gap:7px;padding:0 12px;min-height:44px;background:#fff;border:1px solid #d2ddeb;border-radius:9px}
+.map-layer-control fieldset{position:absolute;left:0;top:50px;width:240px;max-height:280px;overflow:auto;background:#fff;box-shadow:0 8px 30px #10213b24;border:1px solid #c9d9ee;border-radius:10px;padding:12px}
+.map-layer-control legend{font-weight:700;font-size:12px}.map-layer-control label{display:flex;align-items:center;gap:9px;min-height:36px;font-size:12px}.map-layer-control input{accent-color:#2563eb;min-height:20px}
+.cartographic-map{background:#f5f7fb}.cartographic-map text{font-family:Inter,"Segoe UI",Arial,sans-serif}
+.passenger-position{transition:transform .11s linear}.station-map .facility-pin:focus circle{stroke:#2563eb;stroke-width:3px}
+.simulation-launch{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:10px 20px;flex-shrink:0;border-top:1px solid #d5e0ee;background:#fff}
+.simulation-launch .button{font-size:13px;min-height:44px}.simulation-launch small{font-size:11px;color:#667b94}
+.simulation-console{position:relative;z-index:12;flex-shrink:0;background:#fff;border-top:1px solid #d0deef;padding:9px 18px;color:#193754}
+.simulation-primary{display:flex;align-items:center;gap:8px}.simulation-label{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.4px;margin-right:auto;color:#42658b}.simulation-label b{color:#125abc;text-transform:uppercase}
+.simulation-primary button,.advanced-simulation button{display:flex;align-items:center;justify-content:center;gap:6px;min-width:44px;min-height:44px;padding:0 10px;border-radius:7px;background:#edf4ff;color:#175da9;font-size:12px}
+.simulation-feedback{font-size:11px;line-height:1.5;color:#5c718a;margin:5px 100px 5px 0}.simulation-progress{display:flex;gap:12px;align-items:center;font-size:10px;color:#687f99}.simulation-progress progress{width:110px;height:5px;accent-color:#19bfa9}
+.advanced-simulation{position:absolute;right:18px;bottom:3px;font-size:10px}.advanced-simulation summary{display:flex;align-items:center;min-height:36px;cursor:pointer;color:#7b601f}
+.advanced-simulation>div{position:absolute;right:0;bottom:42px;max-height:45dvh;overflow:auto;width:290px;max-width:calc(100vw - 40px);padding:18px;border:1px solid #c4d6ed;background:white;border-radius:12px;box-shadow:0 -8px 35px #10213b24}
+.advanced-simulation label{font-size:12px;line-height:1.6;display:block;margin:10px 0}.advanced-simulation select{display:block;width:100%;margin-top:6px;min-height:44px;padding:8px;border:1px solid #bdd1e8;border-radius:7px;background:#fff;font-size:12px}
+.advanced-simulation label.check-control{display:flex;align-items:center;gap:8px;min-height:44px}.advanced-simulation input{min-height:20px;accent-color:#2563eb}.advanced-simulation p{font-size:10px;line-height:1.7;color:#718299}
+.simulation-console:has([data-testid=simulation-status]) .simulation-feedback{max-height:34px;overflow:auto}
+.navigator .next-direction{padding:12px 20px;min-height:86px}.navigator .next-direction strong{font-size:15px}.navigator .next-direction p{font-size:11px;line-height:1.5;margin-top:4px}.navigator .next-direction small{font-size:9px}
+.navigator:has([data-testid=passenger-marker]) .station-strip{min-height:70px;padding-top:8px;padding-bottom:8px}
+@media(max-width:760px){
+ .station-map .map-tools{bottom:34px;padding:2px;gap:0}.station-map .zoom-label{width:28px;font-size:8px}.station-map .map-tools .icon-button{width:42px;min-width:42px;height:44px}.station-map .map-legend span{font-size:8px}.station-map .map-legend{gap:8px}.station-map .map-hint{font-size:8px;left:102px;right:78px;top:20px;line-height:1.5}.map-layer-control summary{font-size:11px;padding:0 10px}.map-layer-control fieldset{max-height:220px;width:220px}.station-map .floor-switcher{width:56px;right:10px;top:10px!important}
+ .simulation-launch{padding:8px 12px;gap:5px}.simulation-launch .button{font-size:11px;padding:0 12px}.simulation-launch small{font-size:8px;max-width:110px;line-height:1.5}
+ .simulation-console{padding:7px 12px}.simulation-label{font-size:8px;gap:4px;letter-spacing:0}.simulation-label>svg{display:none}.simulation-primary{gap:4px}.simulation-primary button{font-size:11px;padding:0 8px}.simulation-primary button>span{display:none}.simulation-feedback{font-size:10px;margin-right:75px;line-height:1.5}.simulation-progress{font-size:9px;gap:8px}.simulation-progress progress{width:70px}.advanced-simulation{right:12px;bottom:0}.advanced-simulation summary{font-size:9px}
+ .navigator .next-direction{padding:10px 13px;min-height:84px}.navigator .next-direction strong{font-size:12px}.navigator .next-direction p{font-size:9px}.navigator .next-direction .next-arrow{width:32px;height:34px}.navigator .next-direction small{font-size:8px}.map-panel{padding-bottom:88px}.mobile-panel-toggle{min-height:88px;padding-top:23px;padding-bottom:13px}.mobile-panel-toggle strong{font-size:16px}.mobile-panel-toggle small{font-size:11px}.panel-expanded .panel-content{max-height:calc(min(75dvh,650px) - 88px)}
+}
+@media(prefers-reduced-motion:reduce){.passenger-position{transition:none}}
+
