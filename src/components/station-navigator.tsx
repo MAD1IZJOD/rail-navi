@@ -44,7 +44,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [bridgeClosed, setBridgeClosed] = useState(false);
   const [floor, setFloor] = useState<FloorId>(0);
   const [stops, setStops] = useState<JourneyStop[]>([]);
-  const onVisit = useCallback((id: string) => setStops(current => current.filter(s => s.id !== id)), []);
+  const onVisit = useCallback((id: string) => setStops(current => current.filter(s => s.id !== id)), [setStops]);
   const sim = useNavigationSimulation(station, setFloor, onVisit);
   const [facilityAvailability, setFacilityAvailability] = useState<Record<string, boolean>>({});
   const [buffer, setBuffer] = useState(300);
@@ -278,3 +278,4 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     </main>
   );
 }
+
