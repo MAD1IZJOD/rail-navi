@@ -20,6 +20,7 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
  const svg=useRef<SVGSVGElement>(null),pointers=useRef(new Map<number,Point>()),frame=useRef(0);
  const positionRef=useRef(passenger),routeRef=useRef(route);
+ const dragged=useRef(false);
  const hasPassenger=!!passenger;
  const zoom=station.width/view.width,scale=Math.min(viewport.x/view.width,viewport.y/view.height);
  const nodes=useMemo(()=>new Map(station.nodes.map(n=>[n.id,n])),[station]);
@@ -87,12 +88,15 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
   return()=>animations.forEach(a=>a.cancel());
  },[floor,route]);
  function down(e:PointerInput<SVGSVGElement>){
-  if(preview||(e.target as Element).closest("[data-map-item]"))return;
+  if(preview)return;
+  dragged.current=false;
   cancelAnimationFrame(frame.current);setFollow(false);
-  pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});e.currentTarget.setPointerCapture(e.pointerId);
+  pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  const capture=(e.target as Element).closest("[data-map-item]")??e.currentTarget;capture.setPointerCapture(e.pointerId);
  }
  function drag(e:PointerInput<SVGSVGElement>){
   const previous=pointers.current.get(e.pointerId);if(!previous)return;
+  if(Math.hypot(e.clientX-previous.x,e.clientY-previous.y)>2)dragged.current=true;
   const before=[...pointers.current.values()];pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});const after=[...pointers.current.values()];
   if(before.length===2&&after.length===2){
    const distance=(p:Point[])=>Math.hypot(p[0]!.x-p[1]!.x,p[0]!.y-p[1]!.y);
@@ -153,7 +157,7 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  <text textAnchor="middle" dominantBaseline="central" style={{fontSize:font,fontWeight:l.kind==="platform"?750:600,fill:l.kind==="platform"?"white":l.kind==="region"?"#486380":"#405B77"}}>{l.text}</text></g>)}</g>}
  {layers.route&&<g data-layer="active-route">{segments.map(({edge,a,b})=><g key={edge.id} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="white" strokeWidth="12" strokeLinecap="round" vectorEffect="non-scaling-stroke"/><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#2563EB" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke"/></g>)}
  {transitions.map(c=>{const p=nodes.get(c.fromFloor===floor?c.fromNodeId:c.toNodeId)??route?.nodes.find(n=>n.id===c.fromNodeId);if(!p)return null;return <g key={c.edgeId} data-testid="floor-transition" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={12/scale} fill="white" stroke="#2563EB" strokeWidth="2" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fontSize:11/scale,fontWeight:750,fill:"#1F5BCB"}}>{c.kind==="lift"?"L":c.kind==="stairs"?"S":"E"}</text></g>;})}</g>}
- {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={f.name} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>onFacilitySelect?.(f)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
+ {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={f.name} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>{if(!dragged.current)onFacilitySelect?.(f);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
  <title>{f.name}</title><circle r={12/scale} fill={f.id===selectedFacilityId?"#10213B":"#FFF"} stroke="#8AA8C8" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/><FacilityIcon category={f.category} x={-7/scale} y={-7/scale} width={14/scale} height={14/scale} color={f.id===selectedFacilityId?"white":"#3F658E"}/></g>)}</g>}
  {layers.endpoints&&[{p:start,letter:"A",color:"#10213B",test:"start-marker"},{p:destination,letter:destination?.platformId?destination.platformId.split("-")[1]!:"B",color:"#2563EB",test:"destination-marker"}].map(({p,letter,color,test})=>p?.floor===floor?<g key={test} data-testid={test} transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={15/scale} fill="white"/><circle r={12/scale} fill={color}/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:11/scale,fontWeight:800}}>{letter}</text></g>:null)}
  {layers.passenger&&passenger?.floor===floor&&<g data-testid="passenger-marker" data-x={passenger.x} data-y={passenger.y} data-floor={passenger.floor} className="passenger-position" transform={`translate(${passenger.x} ${passenger.y})`} pointerEvents="none">
