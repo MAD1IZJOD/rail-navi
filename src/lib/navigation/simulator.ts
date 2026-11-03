@@ -97,7 +97,8 @@ export function replanSession(s:NavigationSession,graph:NavigationGraph,request:
  const route=planJourney(filtered,start,request.destinationId,pendingStops,{...request.options,blockedEdgeIds:[]});
  const next={...s,route,itinerary,destinationId:request.destinationId,options:request.options,edgeIndex:0,edgeSeconds:0,revision:s.revision+1,pending:undefined,message:request.reason};
  if(route.status!=="available")return{...next,status:"blocked",message:request.reason+" No safe route is available. Contact the Main information desk in this fictional demo."};
- return{...next,status:s.status==="at-stop"?"at-stop":route.edges.length?(s.status==="running"?"running":"paused"):"arrived",position:{...s.position,nodeId:start}};
+ const initialVisit=route.stopVisits?.find(v=>v.edgeIndex===0&&!s.visitedStopIds?.includes(v.id)),currentStop=s.currentStop??initialVisit;
+ return{...next,currentStop,visitedStopIds:initialVisit?[...(s.visitedStopIds??[]),initialVisit.id]:s.visitedStopIds,status:currentStop?"at-stop":route.edges.length?(s.status==="running"?"running":"paused"):"arrived",position:{...s.position,nodeId:start}};
 }
 export function deviationChoices(s:NavigationSession,graph:NavigationGraph):string[]{
  const node=s.position.nodeId;if(!node||!graph.nodes.some(n=>n.id===node)||s.edgeSeconds>0)return[];
@@ -129,7 +130,7 @@ export function sessionGuidance(s:NavigationSession){
   if(s.status==="at-stop"&&step.kind==="arrive"&&step.nodeIds.includes(s.currentStop?.nodeId??"")){index=i;end=offset;break;}
   if(s.edgeIndex>=offset&&s.edgeIndex<next){index=i;end=next;break;}offset=next;
  }
- const current=s.route.instructions[index],upcoming=s.route.instructions[index+1];
+ const current=s.status==="at-stop"&&s.currentStop?{kind:"arrive" as const,text:"Arrived at "+s.currentStop.name+". Continue when you are ready.",floor:s.position.floor,toFloor:s.position.floor,nodeIds:[s.currentStop.nodeId],edgeIds:[],distanceMeters:0,durationSeconds:0}:s.route.instructions[index],upcoming=s.route.instructions[index+1];
  const decisionDistance=s.route.edges.slice(s.edgeIndex,end).reduce((v,e)=>v+e.distanceMeters,0)-(edge?.distanceMeters??0)*fraction;
  return{current,upcoming,remainingDistance:Math.max(0,remainingDistance),walkingSeconds:Math.max(0,walkingSeconds),dwellSeconds,remainingSeconds:Math.max(0,walkingSeconds)+dwellSeconds,decisionDistance:Math.max(0,decisionDistance),progress:s.route.distanceMeters?1-Math.max(0,remainingDistance)/s.route.distanceMeters:1};
 }
