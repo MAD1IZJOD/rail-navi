@@ -1,8 +1,8 @@
-# RailNavi — Batch 3
+# RailNavi — Batch 4
 
-RailNavi is a working indoor railway-navigation proof of concept with a five-level fictional station, synthetic tickets, weighted routing, an interactive SVG map and a deterministic passenger-navigation simulator.
+RailNavi is a working indoor railway-navigation proof of concept with a five-level fictional station, synthetic tickets, weighted routing, an interactive SVG map a deterministic passenger-navigation simulator, network-ranked facility discovery, optional visits and departure-aware journey planning.
 
-**RailNavi Demo Central is entirely fictional.** Maps, bookings, departures, passenger names, outages and movement are synthetic. There are no live railway APIs, scraped PNRs, GPS tracking, official logos or claimed railway partnerships. Batch 4 is not implemented.
+**RailNavi Demo Central is entirely fictional.** Maps, bookings, departures, passenger names, outages and movement are synthetic. There are no live railway APIs, scraped PNRs, GPS tracking, official logos or claimed railway partnerships. No live commerce, payments or emergency-service connection is provided.
 
 ## Run
 
@@ -17,23 +17,27 @@ npm run dev
 
 For the supplied checkout, use `D:\personal projects\rail navi`. Open [RailNavi locally](http://localhost:3000). No environment variables, secrets, accounts, paid mapping APIs or database are required.
 
-## Reproduce the complete demo
+## Reproduce the complete Batch 4 demo
 
-1. Choose **Find My Platform**. Select **Platform 17 simulator demo · RN-DEMO-1035**, then **Find ticket**.
-2. Choose **Gate 2**. Select **Navigate to Platform 17** and inspect the calculated route. Default preference is Fastest.
-3. Select **Start simulated navigation**. Pause and Resume work at any position; **Next point** completes the current graph connection and pauses at the next decision point.
-4. To reproduce the tested sequence, pause and select **Next point** until the passenger reaches Level +1 at the west landing of Foot Overbridge B. The floor changes only when the vertical edge completes.
-5. Open **Demo controls**. Choose **Main concourse** as the alternate connection, then **Take selected path**. Pause and select **Next point** to finish that permitted detour. The engine detects the deviation and calculates a route from that actual landing.
-6. Under **Other crossing outage**, select **Foot Overbridge B**. The route updates from the current position and the crossing becomes amber on its floor.
-7. Close Demo controls. Open **Simulate platform change** above the map and select **Platform 11**. Ticket assignment, destination and route update together.
-8. Use **Fit to route** to see the replacement path. Open Demo controls, choose **120×**, close the controls and Resume.
-9. The passenger follows actual edges and vertical connectors to Platform 11. Arrival is announced and remaining distance/time reach zero.
+1. Choose **Find My Platform**, select **Platform 17 simulator demo · RN-DEMO-1035**, then **Find ticket**.
+2. Choose **Gate 2**, then **Navigate to Platform 17**. The fictional clock starts 25 minutes before that train's scheduled departure. Inspect the direct route.
+3. Open **Facilities**, search **water on my way**, select the first suitable result and compare its walking detour, estimated visit and departure-fit status. Choose **Add stop · keep platform last**.
+4. Open Facilities again, search **pharmacy** and add **Main · Station Pharmacy**. These are actual connected station records; water selection uses the routing engine, not a hardcoded answer.
+5. Select the narrow timing/stops strip above the navigation controls, or **View stops and timing** in Directions. On mobile, close the sheet with its grip before using the map controls. Review **Useful stops. Platform last.** Reorder with the arrow buttons, adjust visit minutes, or **Optimize order**. The final platform stays last.
+6. Review direct walking time, journey walking time, visits, detour, departure time, estimated arrival and margin after the selected 2/5/10-minute buffer. **Not recommended** offers a direct-platform alternative; estimates do not guarantee boarding.
+7. Close the mobile sheet, then **Start simulated navigation**. Under **Demo controls**, select **120×** for a short showcase. Close the controls. The passenger follows actual graph edges and pauses at the first facility.
+8. At a facility, choose **Continue after visit**. This counts its configured fictional dwell once, then resumes walking. Visited stops leave the pending itinerary. Continue likewise after the second visit.
+9. While moving or paused, use Demo controls to **Close Bridge A** or close another crossing. The remaining itinerary recalculates from the passenger's actual position. An occupied connector finishes safely before queued replanning; failure of an occupied connector freezes movement until restored.
+10. Open **Simulate platform change** above the map, select **Platform 11**, then close the control. The assigned platform, final marker, route, instructions and timing update together. Reachable optional stops are retained; a water stop on Platform 17 may remain an optional visit even though the final destination is now Platform 11.
+11. Continue any remaining facility visit. The arrival state identifies **Platform 11 boarding area**, with zero remaining time/distance. Remove optional stops or restore a connection if the demonstration conditions make a route unavailable.
 
-This sequence is exercised by the desktop and mobile browser tests. No route geometry is hardcoded.
+The production browser suite exercises this complete journey on desktop and mobile, compares composed route geometry with the routing engine, and separately checks adding/removing a stop while moving or paused. No route geometry is hardcoded.
 
-For accessibility, switch to a step-free route before starting. **Simulate all lifts unavailable** honestly blocks a wheelchair route; restoring lifts permits recalculation without substituting stairs. An occupied failed lift stops the simulation in place until restored.
+For timing/availability demonstrations, open **Simulation Controls — Fictional Data** in the journey section. Adjust the demo clock, departure or facility availability. A closed pending shop produces an honest unavailable journey until removed/replaced or restored. A long dwell or late clock can trigger **Not recommended**. Opening hours are checked at estimated arrival, including earlier visits.
 
-**RN-DEMO-1001** still resolves to the earlier Platform 10 demo. All 30 previous references remain valid. There are now 28 departures and 38 synthetic bookings, with assignments covering all 20 platforms. Train-name, demo-number and one-character word-typo search are available without a booking.
+For accessibility, switch to a step-free route before starting. **Simulate all lifts unavailable** blocks a wheelchair journey; restoring lifts permits recalculation without substituting stairs. Passenger assistance offers information, first aid, accessible help, lost-and-found and ticketing facilities. Assistance is added as a visit so an active train's platform is preserved. **Route here** is offered as an explicit main-destination choice when no train is active.
+
+The earlier **RN-DEMO-1001** Platform 10 demo and the Batch 3 simulator scenario remain available. There are 28 fictional departures and 38 synthetic bookings. Train-name, demo-number and one-character word-typo search work without a booking.
 
 ## Station inventory and topology
 
@@ -60,6 +64,27 @@ A lower transfer corridor reaches the fictional metro interchange via explicit l
 
 Shared landing coordinates represent adjacent equipment bays, not detailed equipment footprints. Edge records are connections: most are bidirectional, while escalators are upward-only. Physical access-point counts differ from travel-mode counts.
 
+## Facility catalogue and discovery
+
+All 124 facilities keep their original graph anchors. Each has a description, fictional operating hours, visit duration, availability, services/synonyms, landmark and map priority. All 124 anchors are modeled as accessible; actual step-free reachability still depends on graph closures. Two retail records start unavailable (`p17-amenity`, `west-shop-11`). No inventory or price is represented as verified live information.
+
+| Category | Count | Category | Count |
+| --- | ---: | --- | ---: |
+| Drinking water | 23 | Washrooms | 10 |
+| Tea / coffee | 10 | Food / snacks | 2 |
+| Convenience stores | 4 | Pharmacy | 1 |
+| Waiting rooms | 30 | Information | 3 |
+| Ticketing | 3 | Accessible assistance | 5 |
+| General station help | 22 | First aid | 3 |
+| Lost and found | 2 | Charging | 3 |
+| Luggage | 2 | Transit interchange | 1 |
+
+Search uses deterministic normalization, category synonyms and optional Platform, Gate or Level qualifiers. Examples: **nearest washroom**, **coffee near Platform 12**, **pharmacy on my way**, **food near Gate 3**, **accessible toilet**, **charging point on Level +1**, **help desk**, **something to eat before my train**. Mixed/unsupported requests suggest categories; this is a limited intent parser, not unrestricted natural-language understanding.
+
+Results evaluate actual graph routes under the chosen preference and closures. Open/reachable options with feasible departure timing rank before unsuitable ones; qualifiers use network proximity, and **on my way** ranks walking-time detours. Other searches rank walking distance. Floor changes break ties. **On your route** requires at most **30 additional metres**, **45 additional walking seconds**, and **no added floor transitions**. The complete matched catalogue is evaluated (bounded by this station's 124 records); the best 12 are displayed. No Euclidean-only nearest result is substituted.
+
+Discovery samples the simulated position when searching, refreshing, or when relevant conditions change. **Refresh near me** explicitly updates that sample; labels identify sampled estimates. This avoids recalculating the entire catalogue on each animation tick. Adding a result always plans again from the current passenger position.
+
 ## Architecture
 
 ```text
@@ -70,7 +95,14 @@ src/lib/station/demo-station.ts   Public station export, availability groups and
 src/lib/station/validate.ts       Exact line/rectangle coverage, restricted-area and connectivity validation
 src/lib/station/cartography.ts   Palette, bounded camera fitting and priority/collision label placement
 src/lib/navigation/engine.ts      Framework-independent Dijkstra and derived route instructions
-src/lib/navigation/simulator.ts   Pure movement, progress, guidance, deviation and rerouting state
+src/lib/navigation/simulator.ts   Pure movement, facility arrivals, progress and safe rerouting
+src/lib/navigation/context.ts     Physical-position graph context for discovery and previews
+src/lib/facilities/catalog.ts     Deterministic enrichment, categories and fictional operating hours
+src/lib/facilities/search.ts      Intent parsing, network ranking, insertion previews and timing fit
+src/lib/journey/planner.ts        Ordered route composition, best insertion and exact stop ordering
+src/lib/journey/time.ts           Explicit service-day clock and departure/buffer assessment
+src/components/station-companion.tsx
+                                 Discovery, assistance, facility details and itinerary/timing UI
 src/lib/positioning/manual.ts     Async provider interface resolving known graph checkpoints
 src/lib/tickets/demo.ts           Synthetic bookings, train search and immutable platform assignments
 src/components/station-map.tsx    SVG layers, gestures, camera, passenger marker and map controls
@@ -112,6 +144,18 @@ An occupied vertical connector completes to its landing before a queued destinat
 
 Wrong turns are selected only at verified decision points and traverse a permitted connection before rerouting. Train assignments and station availability remain authoritative in the explorer; UI panels do not maintain competing platform assignments.
 
+### Optional visits and fictional time
+
+`JourneyStop` and `RouteVisit` extend the reusable route contract without coupling algorithms to React. `planJourney` concatenates genuine Dijkstra legs and records each visit's cumulative edge index. Walking totals exclude dwell; complete journey ETA adds pending/current dwell. Distance/time detours compare the itinerary with the direct route to the same final destination. Map previews, numbered visits and floor segments use those ordered edges, including repeated edges on a facility spur.
+
+At most **four optional stops** are supported. Best insertion evaluates at most five positions while preserving existing relative order. **Optimize order** uses exact Held–Karp dynamic programming over the selected stops, with directed graph-oracle costs: O(2^k k²) states/transitions, k ≤ 4. It minimizes the selected distance/time objective. It does not jointly optimize all facilities in the station or solve time-window/dwell scheduling; hours and departure feasibility are reassessed after ordering.
+
+Replanning preserves exact interpolated walking positions, occupied-connector safeguards, traveled distance, pause state and visited IDs. A facility arrival pauses until Continue; estimated dwell is applied once on continuation. Visited stops cannot be added again within the same session. Explicit Restart returns to the declared entrance with the session's current itinerary; Stop retains pending planning state. Reload resets the local showcase.
+
+The clock is absolute seconds on a **fictional service day**, independent of device time. A ticket starts 25 minutes before its scheduled demo departure. Running simulation advances the clock by simulated travel, including the speed multiplier; pause/visit waiting freezes it, and Continue applies the selected dwell estimate. Operator clock changes are explicit. Midnight rollover is represented as Day 2, etc.; departures remain on their explicit original service day and are never silently moved to tomorrow.
+
+Arrival = fictional now + remaining walking + remaining visits. Margin = departure − estimated arrival − selected buffer. **Comfortable timing** means at least 180 seconds of extra margin after the buffer; **Tight timing** means 0–179 seconds; a negative margin is **Not recommended**. Without a train, the app gives journey estimates without inventing a deadline. Missing routes or invalid durations produce no valid timing estimate.
+
 ## Checks
 
 ```powershell
@@ -142,5 +186,5 @@ Import [MAD1IZJOD/rail-navi](https://github.com/MAD1IZJOD/rail-navi) into Vercel
 - The existing ESLint 9/framework-plugin compatibility constraint and moderate development-tool dependency advisories remain; forced upgrades should not be applied without compatibility testing.
 - There is no offline cache, real PNR integration, scanned ticket recognition, mobile native app or multi-station ingestion.
 
-The separate station, geometry, topology, routing and simulation contracts can support later verified positioning providers, smart facility search, passenger assistance and route planning with multiple stops. Those Batch 4 features are not implemented here.
+The separate station, geometry, topology, routing and simulation contracts can support later verified positioning providers, QR checkpoint providers, an offline station cache, localized labels/instructions and a mobile installation manifest in later work. Batch 5 is not implemented.
 
