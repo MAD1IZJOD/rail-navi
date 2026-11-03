@@ -105,4 +105,5 @@ test("adding and removing a stop during movement preserves position, pause and t
  await expect(page.locator(".final-destination")).toContainText("Platform 17");await expect(page.locator(".itinerary-list li")).toHaveCount(1);
  await fold(page);await page.getByText("Demo controls",{exact:true}).click();await page.getByLabel("Simulation speed",{exact:true}).selectOption("120");await page.getByText("Demo controls",{exact:true}).click();
  await page.getByRole("button",{name:"Resume",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveText("arrived",{timeout:20000});
+ await page.getByRole("button",{name:"Stop navigation",exact:true}).click();await expect(page.getByTestId("route-summary")).toHaveCount(0);await expect(page.getByTestId("route-segment")).toHaveCount(0);
 });
