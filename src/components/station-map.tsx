@@ -8,13 +8,13 @@ import {constrainCamera,fitPoints,mapPalette,placeLabels,type Camera,type MapLab
 import {FacilityIcon} from "./facility-icon";
 interface Props {
  children?:ReactNode;station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
- showFacilities?:boolean;facilityCategory?:FacilityCategory|"all";selectedFacilityId?:string;
+ matchingFacilityIds?:readonly string[];previewRoute?:GeneratedRoute;showFacilities?:boolean;facilityCategory?:FacilityCategory|"all";selectedFacilityId?:string;
  onFacilitySelect?:(facility:Facility)=>void;passenger?:SimPosition;passengerStatus?:string;
  landmarkNodeId?:string;unavailableEdgeIds?:readonly string[];destinationId?:string;onPassengerFloor?:(floor:FloorId)=>void;
 }
 const defaults={architecture:true,tracks:true,platforms:true,passages:true,connectors:true,facilities:true,labels:true,route:true,passenger:true,endpoints:true};
 const layerNames:Record<keyof typeof defaults,string>={architecture:"Station architecture",tracks:"Tracks (restricted)",platforms:"Platforms",passages:"Bridges & passages",connectors:"Stairs, escalators & lifts",facilities:"Facility markers",labels:"Map labels",route:"Active route",passenger:"Passenger marker",endpoints:"Start & destination"};
-export function StationMap({children,station,floor,route,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,landmarkNodeId,unavailableEdgeIds,onPassengerFloor}:Props){
+export function StationMap({children,station,floor,route,matchingFacilityIds,previewRoute,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,landmarkNodeId,unavailableEdgeIds,onPassengerFloor}:Props){
  const [view,setView]=useState<Camera>({x:0,y:0,width:station.width,height:station.height});
  const [viewport,setViewport]=useState<Point>({x:1000,y:650});
  const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
@@ -54,6 +54,11 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
   });
   return()=>cancelAnimationFrame(task);
  },[hasPassenger,moveCamera,station.width,station.height]);
+ useEffect(()=>{
+  const selected=station.facilities.find(f=>f.id===selectedFacilityId);if(!selected)return;
+  const task=requestAnimationFrame(()=>{setFollow(false);const width=station.width/3;moveCamera(constrainCamera({x:selected.x-width/2,y:selected.y-width*station.height/station.width/2,width,height:width*station.height/station.width},station.width,station.height));});
+  return()=>cancelAnimationFrame(task);
+ },[selectedFacilityId,station,moveCamera]);
  useEffect(()=>{
   if(!hasPassenger||!follow||passengerStatus!=="running")return;
   const timer=setInterval(()=>{
@@ -135,13 +140,14 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  ],[station,nodes,floor,geometry,zoom,destination?.platformId,view.y,scale]);
  const labels=useMemo(()=>placeLabels(candidates,view,viewport,12),[candidates,view,viewport]);
  const facilities=useMemo(()=>{
-  const all=station.facilities.filter(f=>f.floor===floor&&(facilityCategory==="all"||f.category===facilityCategory)&&
-   (f.id===selectedFacilityId||showFacilities||zoom>2.7||(zoom>1.7&&["information","accessible","security"].includes(f.category))));
+  const all=station.facilities.filter(f=>f.floor===floor&&(f.id===selectedFacilityId||
+   ((facilityCategory==="all"||f.category===facilityCategory)&&(!matchingFacilityIds||matchingFacilityIds.includes(f.id))&&
+   (showFacilities||zoom>2.7||(zoom>1.7&&["information","accessible","security"].includes(f.category))))));
   const selected=placeLabels(all.map(f=>({id:f.id,text:"●",x:f.x,y:f.y,priority:f.id===selectedFacilityId?2000:f.category==="information"?500:100,kind:"facility"})),view,viewport,16);
   return selected.map(l=>all.find(f=>f.id===l.id)!);
- },[station,floor,facilityCategory,selectedFacilityId,showFacilities,zoom,view,viewport]);
+ },[station,floor,facilityCategory,selectedFacilityId,showFacilities,matchingFacilityIds,zoom,view,viewport]);
  const segments=useMemo(()=>route?.status==="available"?route.edges.flatMap((edge,i)=>{
-  const a=route.nodes[i]!,b=route.nodes[i+1]!;return a.floor===floor&&b.floor===floor?[{edge,a,b}]:[];
+  const a=route.nodes[i]!,b=route.nodes[i+1]!;return a.floor===floor&&b.floor===floor?[{edge,a,b,index:i}]:[];
  }):[],[route,floor]);
  const transitions=route?.floorChanges.filter(c=>c.fromFloor===floor||c.toFloor===floor)??[];
  const font=12/scale;
@@ -156,10 +162,12 @@ export function StationMap({children,station,floor,route,preview=false,showFacil
  {layers.labels&&<g data-layer="labels" pointerEvents="none">{labels.map(l=><g key={l.id} data-testid="map-label" data-priority={l.priority} transform={`translate(${l.x} ${l.y})`}>
  {l.kind==="platform"&&<rect x={-Math.max(22,l.text.length*9)/scale/2} y={-11/scale} width={Math.max(22,l.text.length*9)/scale} height={22/scale} rx={5/scale} fill={destination?.platformId===l.id?"#2563EB":"#10213B"}/>}
  <text textAnchor="middle" dominantBaseline="central" style={{fontSize:font,fontWeight:l.kind==="platform"?750:600,fill:l.kind==="platform"?"white":l.kind==="region"?"#486380":"#405B77"}}>{l.text}</text></g>)}</g>}
- {layers.route&&<g data-layer="active-route">{segments.map(({edge,a,b})=><g key={edge.id} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="white" strokeWidth="12" strokeLinecap="round" vectorEffect="non-scaling-stroke"/><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#2563EB" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke"/></g>)}
- {transitions.map(c=>{const p=nodes.get(c.fromFloor===floor?c.fromNodeId:c.toNodeId)??route?.nodes.find(n=>n.id===c.fromNodeId);if(!p)return null;return <g key={c.edgeId} data-testid="floor-transition" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={12/scale} fill="white" stroke="#2563EB" strokeWidth="2" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fontSize:11/scale,fontWeight:750,fill:"#1F5BCB"}}>{c.kind==="lift"?"L":c.kind==="stairs"?"S":"E"}</text></g>;})}</g>}
+ {layers.route&&previewRoute?.status==="available"&&<g data-layer="detour-preview" pointerEvents="none">{previewRoute.edges.map((e,i)=>{const a=previewRoute.nodes[i]!,b=previewRoute.nodes[i+1]!;return a.floor===floor&&b.floor===floor?<line key={i} data-testid="detour-segment" data-edge-id={e.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#079482" strokeWidth="9" strokeDasharray="6 7" opacity=".6" vectorEffect="non-scaling-stroke"/>:null;})}</g>}
+ {layers.route&&<g data-layer="active-route">{segments.map(({edge,a,b,index})=><g key={edge.id+":"+index} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="white" strokeWidth="12" strokeLinecap="round" vectorEffect="non-scaling-stroke"/><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#2563EB" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke"/></g>)}
+ {transitions.map((c,i)=>{const p=nodes.get(c.fromFloor===floor?c.fromNodeId:c.toNodeId)??route?.nodes.find(n=>n.id===c.fromNodeId);if(!p)return null;return <g key={c.edgeId+":"+i} data-testid="floor-transition" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={12/scale} fill="white" stroke="#2563EB" strokeWidth="2" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fontSize:11/scale,fontWeight:750,fill:"#1F5BCB"}}>{c.kind==="lift"?"L":c.kind==="stairs"?"S":"E"}</text></g>;})}</g>}
  {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={f.name} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>{if(!dragged.current)onFacilitySelect?.(f);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
  <title>{f.name}</title><circle r={12/scale} fill={f.id===selectedFacilityId?"#10213B":"#FFF"} stroke="#8AA8C8" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/><FacilityIcon category={f.category} x={-7/scale} y={-7/scale} width={14/scale} height={14/scale} color={f.id===selectedFacilityId?"white":"#3F658E"}/></g>)}</g>}
+ {layers.endpoints&&route?.stopVisits?.map((s,i)=>{const p=nodes.get(s.nodeId);return p?.floor===floor?<g key={s.id} data-testid="itinerary-waypoint" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><title>{`Stop ${i+1}: ${s.name}`}</title><circle r={14/scale} fill="#087F73" stroke="white" strokeWidth="3" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:12/scale,fontWeight:800}}>{i+1}</text></g>:null;})}
  {layers.endpoints&&[{p:start,letter:"A",color:"#10213B",test:"start-marker"},{p:destination,letter:destination?.platformId?destination.platformId.split("-")[1]!:"B",color:"#2563EB",test:"destination-marker"}].map(({p,letter,color,test})=>p?.floor===floor?<g key={test} data-testid={test} transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={15/scale} fill="white"/><circle r={12/scale} fill={color}/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:11/scale,fontWeight:800}}>{letter}</text></g>:null)}
  {decision?.floor===floor&&layers.labels&&<g data-testid="decision-landmark" pointerEvents="none"><circle cx={decision.x} cy={decision.y} r={19/scale} fill="none" stroke="#D99416" strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke"/><title>{decision.name}</title></g>}
  {layers.passenger&&passenger?.floor===floor&&<g data-testid="passenger-marker" data-x={passenger.x} data-y={passenger.y} data-floor={passenger.floor} className="passenger-position" transform={`translate(${passenger.x} ${passenger.y})`} pointerEvents="none">
