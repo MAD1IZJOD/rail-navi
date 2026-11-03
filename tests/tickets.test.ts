@@ -1,7 +1,7 @@
 import {expect,it} from "vitest";
 import {demoTrains,demoTickets,lookupTicket,searchTrains,assignPlatform,routeToTrain} from "../src/lib/tickets/demo";
 import {demoStation as station,bridgeAEdgeIds} from "../src/lib/station/demo-station";
-it("contains 20 unique departures and 30 synthetic bookings",()=>{expect(new Set(demoTrains.map(t=>t.id)).size).toBe(20);expect(new Set(demoTickets.map(t=>t.reference)).size).toBe(30);});
+it("contains 28 unique departures and 38 synthetic bookings",()=>{expect(new Set(demoTrains.map(t=>t.id)).size).toBe(28);expect(new Set(demoTickets.map(t=>t.reference)).size).toBe(38);});
 it("normalizes synthetic references and joins tickets to departures",()=>{const r=lookupTicket(" rn-demo-1001 ");expect(r.status).toBe("found");if(r.status==="found"){expect(r.train.platformId).toBe("platform-10");expect(r.ticket.coach).toBe("C1");}});
 it.each(["1234567890","","RN-1001","RN-DEMO-abc"])("rejects non-demo reference %s",key=>expect(lookupTicket(key).status).toBe("invalid"));
 it("handles an unknown booking",()=>expect(lookupTicket("RN-DEMO-9999").status).toBe("missing"));
