@@ -1,6 +1,6 @@
 # RailNavi — Batch 4
 
-RailNavi is a working indoor railway-navigation proof of concept with a five-level fictional station, synthetic tickets, weighted routing, an interactive SVG map a deterministic passenger-navigation simulator, network-ranked facility discovery, optional visits and departure-aware journey planning.
+RailNavi is a working indoor railway-navigation proof of concept with a five-level fictional station, synthetic tickets, weighted routing, an interactive SVG map, a deterministic passenger-navigation simulator, network-ranked facility discovery, optional visits and departure-aware journey planning.
 
 **RailNavi Demo Central is entirely fictional.** Maps, bookings, departures, passenger names, outages and movement are synthetic. There are no live railway APIs, scraped PNRs, GPS tracking, official logos or claimed railway partnerships. No live commerce, payments or emergency-service connection is provided.
 
