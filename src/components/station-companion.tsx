@@ -24,7 +24,8 @@ export function FacilityDiscovery(p:DiscoveryProps){
  const found=useMemo(()=>discoverFacilities({station:p.station,...snapshot,finalId:p.finalId,query,category:p.category}),[p.station,p.finalId,p.category,query,snapshot]);
  const results=found.results.filter(r=>!assistance||["information","first-aid","accessible","lost-found","tickets","security"].includes(r.facility.category));
  const resultIds=useMemo(()=>found.results.map(r=>r.facility.id),[found.results]);
- useEffect(()=>p.onMatches(resultIds),[p.onMatches,resultIds]);
+ const onMatches=p.onMatches;
+ useEffect(()=>onMatches(resultIds),[onMatches,resultIds]);
  const refresh=()=>{const v=latest.current;setSnapshot({position:v.position,now:v.now,options:v.options,stops:v.stops,availability:v.availability});};
  return <div className="facilities-panel companion-discovery">
  <div className="discovery-heading"><div className="eyebrow">YOUR STATION COMPANION</div><h2>A useful stop.<br/>A clear way there.</h2><p>Find what you need without losing your platform.</p></div>
