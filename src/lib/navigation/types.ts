@@ -2,7 +2,7 @@
 export type FloorId = -2 | -1 | 0 | 1 | 2;
 export type ConnectionType = "walk" | "stairs" | "escalator" | "lift";
 export type NodeType = "gate" | "junction" | "platform" | "landing" | "facility" | "checkpoint";
-export type FacilityCategory = "washroom" | "water" | "food" | "tea" | "shop" | "pharmacy" | "information" | "tickets" | "waiting" | "accessible" | "security";
+export type FacilityCategory = "washroom" | "water" | "food" | "tea" | "shop" | "pharmacy" | "information" | "tickets" | "waiting" | "accessible" | "security" | "charging" | "luggage" | "first-aid" | "lost-found" | "transit";
 export type RoutePreference = "shortest" | "fastest" | "wheelchair" | "avoid-stairs";
 
 export interface Point { x: number; y: number }
@@ -50,6 +50,7 @@ export interface Entrance {
   nodeId: string;
 }
 export interface Facility extends Point {
+  details?: FacilityDetails;
   id: string;
   name: string;
   category: FacilityCategory;
@@ -57,6 +58,26 @@ export interface Facility extends Point {
   nodeId: string;
   accessible: boolean;
 }
+export interface FacilityDetails {
+  description: string;
+  hours: { opens: number; closes: number };
+  availability: "available" | "unavailable";
+  visitSeconds: number;
+  synonyms: string[];
+  services: string[];
+  products?: string[];
+  priceRange?: string;
+  nearbyLandmark: string;
+  priority: number;
+}
+export interface JourneyStop {
+  id: string;
+  nodeId: string;
+  name: string;
+  dwellSeconds: number;
+  available?: boolean;
+}
+export interface RouteVisit extends JourneyStop { edgeIndex: number }
 export interface LocationAnchor {
   id: string;
   nodeId: string;
@@ -120,6 +141,11 @@ export interface FloorChange {
   kind: ConnectionType;
 }
 export interface GeneratedRoute {
+  stopVisits?: RouteVisit[];
+  finalDestinationId?: string;
+  dwellSeconds?: number;
+  detourMeters?: number;
+  detourSeconds?: number;
   status: "available" | "unreachable" | "invalid";
   message: string;
   preference: RoutePreference;
