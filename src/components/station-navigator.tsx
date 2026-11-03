@@ -30,6 +30,8 @@ const preferences: { id: RoutePreference; name: string; description: string; ico
   { id: "wheelchair", name: "Wheelchair", description: "Lifts & step-free paths", icon: Accessibility },
   { id: "avoid-stairs", name: "Avoid stairs", description: "Escalators & lifts", icon: Layers3 },
 ];
+const closureEdges = (name: string) => station.edges.filter(e => name.startsWith("lift:") ? e.id === name.slice(5) && e.kind === "lift" : e.kind === "walk" && e.label === name).map(e => e.id);
+const closureName = (name: string) => name.startsWith("lift:") ? "Lift at " + (station.edges.find(e => e.id === name.slice(5))?.label ?? "selected connector") : name;
 const minutes = (seconds: number) => Math.max(0, Math.ceil(seconds / 60));
 
 export function StationNavigator({ initialTicket = false }: { initialTicket?: boolean }) {
@@ -56,7 +58,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [crossingOutage, setCrossingOutage] = useState("");
   const route = sim.session?.route ?? plannedRoute;
   const guidance = sim.session ? sessionGuidance(sim.session) : null;
-  const blockedIds = useMemo(() => [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === crossingOutage).map(e => e.id)], [bridgeClosed, liftsClosed, crossingOutage]);
+  const blockedIds = useMemo(() => [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : []), ...closureEdges(crossingOutage)], [bridgeClosed, liftsClosed, crossingOutage]);
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"directions" | "facilities">("directions");
@@ -118,7 +120,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   }
   function changeCrossing(name: string) {
     setCrossingOutage(name);
-    if (sim.session) void calculate({crossingOutage: name, reason: name ? name + " closed. Recalculating from your actual simulated position." : "Crossing restored. Route recalculated."});
+    if (sim.session) void calculate({crossingOutage: name, reason: name ? closureName(name) + " closed. Recalculating from your actual simulated position." : "Crossing restored. Route recalculated."});
     else { setRoute(null); setError(""); }
   }
   function navigateTrain(trainId: string, anchorId: string) {
@@ -144,7 +146,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     const chosenDestination = override.destination ?? destination;
     const chosenPreference = override.preference ?? preference;
     const closure = override.bridgeClosed ?? bridgeClosed;
-    const blocked = [...(closure ? bridgeAEdgeIds : []), ...((override.liftsClosed ?? liftsClosed) ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === (override.crossingOutage ?? crossingOutage)).map(e => e.id)];
+    const blocked = [...(closure ? bridgeAEdgeIds : []), ...((override.liftsClosed ?? liftsClosed) ? liftEdgeIds : []), ...closureEdges(override.crossingOutage ?? crossingOutage)];
     const opts: RoutingOptions = { preference: chosenPreference, blockedEdgeIds: blocked };
     const now = override.now ?? sim.nowSeconds;
     const fromId = station.anchors.find(a => a.id === chosenOrigin)?.nodeId ?? chosenOrigin;
@@ -237,7 +239,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
                 </div>
                 <p className="manual-note"><MapPin size={12} />Manually selected location · No GPS required</p>
                 <fieldset className="preference-field"><legend>MAKE IT YOUR WAY</legend><div className="preference-grid">{preferences.map(item => <label key={item.id} className={`preference-option ${preference === item.id ? "selected" : ""}`}><input type="radio" name="preference" value={item.id} checked={preference === item.id} onChange={() => { setPreference(item.id); if (sim.session) void calculate({preference: item.id, reason: "Navigation preference changed. Route updated from your simulated position."}); else invalidate(); }} /><item.icon size={17} /><span><strong>{item.name}</strong><small>{item.description}</small></span>{preference === item.id && <Check size={13} className="preference-check" />}</label>)}</div></fieldset>
-                <details className="simulation-settings"><summary>Passage availability <ChevronDown size={13} /></summary><label><input type="checkbox" checked={bridgeClosed} onChange={event => { changeAvailability("bridge", event.target.checked); }} />Simulate Bridge A closure</label><label><input type="checkbox" checked={liftsClosed} onChange={event => changeAvailability("lifts", event.target.checked)} />Simulate lift outage</label><label>Station crossing availability<select aria-label="Station crossing availability" value={crossingOutage} onChange={event => changeCrossing(event.target.value)}><option value="">All other crossings available</option>{station.geometry?.regions.filter(r => (r.kind === "bridge" || r.kind === "underpass") && r.name !== "Foot Overbridge A").map(r => <option key={r.id} value={r.name}>{r.name} closed</option>)}</select></label><p>Shared demo availability applies to planning and live simulation. Restore connections here if no safe route exists.</p></details>
+                <details className="simulation-settings"><summary>Passage availability <ChevronDown size={13} /></summary><label><input type="checkbox" checked={bridgeClosed} onChange={event => { changeAvailability("bridge", event.target.checked); }} />Simulate Bridge A closure</label><label><input type="checkbox" checked={liftsClosed} onChange={event => changeAvailability("lifts", event.target.checked)} />Simulate lift outage</label><label>Station crossing availability<select aria-label="Station crossing availability" value={crossingOutage} onChange={event => changeCrossing(event.target.value)}><option value="">All other crossings available</option>{station.geometry?.regions.filter(r => (r.kind === "bridge" || r.kind === "underpass") && r.name !== "Foot Overbridge A").map(r => <option key={r.id} value={r.name}>{r.name} closed</option>)}<optgroup label="Individual lift outage">{station.edges.filter(e => e.kind === "lift").map(e => <option key={e.id} value={"lift:" + e.id}>{e.label} · {floorLabel(station.nodes.find(n => n.id === e.from)!.floor)} ↔ {floorLabel(station.nodes.find(n => n.id === e.to)!.floor)} lift closed</option>)}</optgroup></select></label><p>Shared demo availability applies to planning and live simulation. Restore connections here if no safe route exists.</p></details>
                 <button type="submit" className="button button-primary calculate-button" disabled={computing}>{computing ? <LoaderCircle size={18} className="spin" /> : <Navigation size={17} />} {computing ? "Calculating route…" : available ? "Calculate again" : "Find my route"}<ArrowRight size={17} /></button>
               </form>
               {error && <div className="route-error" role="alert"><strong>Route unavailable</strong><p>{error}</p></div>}
