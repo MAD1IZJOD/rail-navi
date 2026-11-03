@@ -72,9 +72,9 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const remainingRoute = route && guidance ? { ...route, durationSeconds: guidance.walkingSeconds, dwellSeconds: guidance.dwellSeconds } : route;
   const timing = assessTiming(sim.nowSeconds, activeTrain ? serviceTime(activeTrain.departure) : undefined, remainingRoute, buffer);
 
-  function updateStops(next: JourneyStop[], nextPreference = preference) {
+  function updateStops(next: JourneyStop[], nextPreference = preference, keepPanel = true) {
     setStops(next); setPreference(nextPreference);
-    void calculate({ stops: next, preference: nextPreference, reason: "Optional stops updated. Your final destination is preserved." });
+    void calculate({ stops: next, preference: nextPreference, keepPanel, reason: "Optional stops updated. Your final destination is preserved." });
   }
   function addStop(f: Facility, accessible = false) {
     if (stops.some(s => s.id === f.id) || sim.session?.visitedStopIds?.includes(f.id)) return;
@@ -83,9 +83,9 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     const opts = { ...options, preference: nextPreference };
     const pos = positionContext(station, sourceId, sim.session, opts);
     if (!pos.valid) { setPlatformNotice("Restore the occupied connector before planning this stop."); return; }
-    const next = insertBestStop(pos.graph, pos.startId, destination, stops, toJourneyStop(f, sim.nowSeconds, facilityAvailability), opts);
+    const next = insertBestStop(pos.graph, pos.startId, destination, stops, {...toJourneyStop(f, sim.nowSeconds, facilityAvailability), available: true}, opts);
     if (next.route.status !== "available") { setPlatformNotice(next.route.message); return; }
-    updateStops(next.stops, nextPreference); setSelectedFacility(undefined);
+    updateStops(next.stops, nextPreference, false); setSelectedFacility(undefined);
     setPlatformNotice(f.name + " added. " + (activeTrain ? "Your train platform remains the final destination." : "Your final destination is preserved."));
   }
   function optimizeJourney() {
@@ -102,11 +102,11 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   function setFacilityAvailable(id: string, available: boolean) {
     const next = { ...facilityAvailability, [id]: available }; setFacilityAvailability(next);
     setPlatformNotice("Fictional facility availability updated." + (stops.some(s => s.id === id) ? " Pending stop reassessed; remove it if unavailable." : ""));
-    if (route || sim.session) void calculate({ availability: next, reason: "Facility availability changed. Pending stops reassessed." });
+    if (route || sim.session) void calculate({ availability: next, keepPanel: true, reason: "Facility availability changed. Pending stops reassessed." });
   }
   function changeClock(seconds: number) {
     sim.setClock(seconds);
-    if (route || sim.session) void calculate({ now: seconds, reason: "Fictional clock updated. Facility opening hours and timing reassessed." });
+    if (route || sim.session) void calculate({ now: seconds, keepPanel: true, reason: "Fictional clock updated. Facility opening hours and timing reassessed." });
   }
 
   function invalidate() { setSelectedFacility(undefined); setSelectedMatch(undefined); sim.stop(); setRoute(null); setError(""); setPlatformNotice(""); }
@@ -138,7 +138,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     setPlatformNotice(`Simulation: ${activeTrain.name} moved to Platform ${platform.number}. Route recalculated from your ${sim.session ? "current simulated position" : "selected checkpoint"}.`);
     void calculate({ destination: platform.nodeId, reason: "Platform assignment changed. Route recalculated from the current passenger position." });
   }
-  async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean; liftsClosed?: boolean; crossingOutage?: string; reason?: string; stops?: JourneyStop[]; availability?: Record<string, boolean>; now?: number } = {}) {
+  async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean; liftsClosed?: boolean; crossingOutage?: string; reason?: string; stops?: JourneyStop[]; availability?: Record<string, boolean>; now?: number; keepPanel?: boolean } = {}) {
     const chosenOrigin = override.origin ?? origin;
     const chosenDestination = override.destination ?? destination;
     const chosenPreference = override.preference ?? preference;
@@ -163,7 +163,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     setError(""); setSelectedMatch(undefined); setSelectedFacility(undefined);
     if (sim.session && !override.origin) {
       sim.replan(chosenDestination, { preference: chosenPreference, blockedEdgeIds: blocked }, override.reason ?? "Route recalculated from the current simulated position.", ready);
-      setExpanded(false); return;
+      if (!override.keepPanel) setExpanded(false); return;
     }
     if (override.origin) sim.stop();
     setComputing(true);
@@ -173,10 +173,9 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
       if (fix.status !== "located") { setError(fix.message); setRoute(null); return; }
       const result = planJourney(station, fix.position.nodeId, chosenDestination, ready, opts);
       setRoute(result);
-      setTab("directions");
+      if (!override.keepPanel) setTab("directions");
       if (result.status === "available") {
-        setFloor(fix.position.floor);
-        setExpanded(false);
+        if (!override.keepPanel) { setFloor(fix.position.floor); setExpanded(false); }
         setSelectedFacility(undefined);
       } else { setError(result.message); setExpanded(true); }
     } catch {
