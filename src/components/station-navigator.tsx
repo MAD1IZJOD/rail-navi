@@ -113,12 +113,12 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   function changeAvailability(kind: "bridge" | "lifts", closed: boolean) {
     if (kind === "bridge") setBridgeClosed(closed); else setLiftsClosed(closed);
     if (sim.session) void calculate({ ...(kind === "bridge" ? {bridgeClosed: closed} : {liftsClosed: closed}), reason: kind === "bridge" ? "Bridge A availability changed. Route recalculated from the passenger position." : "Lift availability changed. Accessible routing restrictions remain enforced." });
-    else if (route) void calculate({ ...(kind === "bridge" ? {bridgeClosed: closed} : {liftsClosed: closed}) });
+    else { setRoute(null); setError(""); }
   }
   function changeCrossing(name: string) {
     setCrossingOutage(name);
     if (sim.session) void calculate({crossingOutage: name, reason: name ? name + " closed. Recalculating from your actual simulated position." : "Crossing restored. Route recalculated."});
-    else if (route) void calculate({crossingOutage: name});
+    else { setRoute(null); setError(""); }
   }
   function navigateTrain(trainId: string, anchorId: string) {
     const train = trains.find(item => item.id === trainId);
