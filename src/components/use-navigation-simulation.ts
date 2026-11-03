@@ -3,11 +3,12 @@ import {useEffect,useState} from "react";
 import type {FloorId,GeneratedRoute,NavigationGraph,RoutingOptions,JourneyStop} from "@/lib/navigation/types";
 import {advanceSession,continueVisit,deviateSession,pauseSession,replanSession,restartSession,resumeSession,setSimulationSpeed,startSession,stepSession,type NavigationSession} from "@/lib/navigation/simulator";
 
-export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:FloorId)=>void){
+export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:FloorId)=>void,onVisit?:(id:string)=>void){
  const [session,setSession]=useState<NavigationSession|null>(null);
  const [clockBase,setClockBase]=useState(19*3600+55*60);
  const nowSeconds=clockBase+(session?.elapsedSeconds??0);
- const status=session?.status,positionFloor=session?.position.floor;
+ const status=session?.status,positionFloor=session?.position.floor,visitId=session?.currentStop?.id;
+ useEffect(()=>{if(visitId)onVisit?.(visitId);},[visitId,onVisit]);
  useEffect(()=>{
   if(status!=="running")return;
   const timer=setInterval(()=>setSession(current=>current?advanceSession(current,.1,graph):null),100);
