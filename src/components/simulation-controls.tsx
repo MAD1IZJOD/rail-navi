@@ -2,6 +2,7 @@
 import {useState} from "react";
 import {Pause,Play,RotateCcw,SkipForward,Square,MapPin} from "lucide-react";
 import type {GeneratedRoute,RoutingOptions,Station} from "@/lib/navigation/types";
+import {floorLabel} from "@/lib/navigation/engine";
 import {deviationChoices,sessionGuidance} from "@/lib/navigation/simulator";
 import type {SimulationController} from "./use-navigation-simulation";
 interface Props{controller:SimulationController;route:GeneratedRoute|null;station:Station;options:RoutingOptions;onBridge:(closed:boolean)=>void;onLifts:(closed:boolean)=>void;bridgeClosed:boolean;liftsClosed:boolean;crossingOutage:string;onCrossing:(name:string)=>void}
@@ -10,6 +11,8 @@ export function SimulationControls({controller:c,route,station,options,onBridge,
  const s=c.session,g=s&&sessionGuidance(s);
  if(!s)return route?.status==="available"?<div className="simulation-launch"><button className="button button-primary" onClick={()=>c.start(route,options)}><Play size={17}/>Start simulated navigation</button><small>Deterministic demo · Not indoor positioning</small></div>:null;
  const choices=deviationChoices(s,station);
+ const routeLiftIds=new Set(route?.edges.filter(e=>e.kind==="lift").map(e=>e.id.split("::")[0]));
+ const relevantLifts=station.edges.filter(e=>e.kind==="lift"&&(routeLiftIds.has(e.id)||crossingOutage==="lift:"+e.id));
  return <section className="simulation-console" data-revision={s.revision} aria-label="Navigation simulation">
  <div className="simulation-primary"><span className="simulation-label"><MapPin size={14}/>SIMULATION · <b data-testid="simulation-status">{s.status}</b></span>
  {s.status==="at-stop"&&<button onClick={c.continueVisit}>Continue after visit</button>}
@@ -22,7 +25,7 @@ export function SimulationControls({controller:c,route,station,options,onBridge,
  <label>Simulation speed<select aria-label="Simulation speed" value={s.speed} onChange={e=>c.speed(Number(e.target.value))}>{[1,5,20,60,120].map(v=><option key={v} value={v}>{v}×</option>)}</select></label>
  <button onClick={c.restart}><RotateCcw size={15}/>Restart journey</button>
  <label className="check-control"><input type="checkbox" checked={bridgeClosed} onChange={e=>onBridge(e.target.checked)}/>Close Bridge A</label>
- <label>Other crossing outage<select aria-label="Crossing outage" value={crossingOutage} onChange={e=>onCrossing(e.target.value)}><option value="">All other crossings available</option>{station.geometry?.regions.filter(r=>(r.kind==="bridge"||r.kind==="underpass")&&r.name!=="Foot Overbridge A").map(r=><option key={r.id} value={r.name}>{r.name}</option>)}</select></label>
+ <label>Crossing or individual lift outage<select aria-label="Crossing outage" value={crossingOutage} onChange={e=>onCrossing(e.target.value)}><option value="">All other crossings available</option>{station.geometry?.regions.filter(r=>(r.kind==="bridge"||r.kind==="underpass")&&r.name!=="Foot Overbridge A").map(r=><option key={r.id} value={r.name}>{r.name}</option>)}</select></label>
  <label className="check-control"><input type="checkbox" checked={liftsClosed} onChange={e=>onLifts(e.target.checked)}/>Simulate all lifts unavailable</label>
  <label>Wrong turn at a decision point<select aria-label="Alternative connection" value={choices.includes(alternative)?alternative:""} disabled={!choices.length} onChange={e=>setAlternative(e.target.value)}><option value="">Choose a permitted alternative</option>{choices.map(id=><option key={id} value={id}>{station.nodes.find(n=>n.id===id)?.name}</option>)}</select></label>
  <button disabled={s.status!=="paused"||!choices.includes(alternative)} onClick={()=>{c.deviate(alternative);setAlternative("");}}>Take selected path</button>
