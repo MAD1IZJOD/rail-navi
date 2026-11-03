@@ -5,6 +5,13 @@ export interface DemoTicket { reference:string; trainId:string; passenger:string
 const names=["Moonrise Express","Blue Horizon","Aurora Intercity","Coastal Comet","Silver Valley","Monsoon Arrow","Skyline Voyager","Copper Coast","Orchid Express","Northern Lantern","Sunset Link","Riverlight Express","Cloudline Intercity","Amber Trail","Starling Express","Cedar Voyager","Coral Connection","Daybreak Arrow","Indigo Link","Meadow Express"];
 export const demoTrains:DemoTrain[]=names.map((name,i)=>({id:`train-${i+1}`,number:`RN${2001+i}`,name,origin:["Aster Junction","Cedar Bay","Orchid City","Silver Reach"][i%4]!,destination:["Moonhaven","Coral Vale","Amber City","Skyhaven"][i%4]!,departure:`${String(16+Math.floor(i/6)).padStart(2,"0")}:${String((i%6)*10).padStart(2,"0")}`,platformId:`platform-${i===0?10:(i%12)+1}`,status:i===19?"cancelled":i===7?"delayed":"on-time"}));
 export const demoTickets:DemoTicket[]=Array.from({length:30},(_,i)=>({reference:`RN-DEMO-${1001+i}`,trainId:`train-${i%20+1}`,passenger:`Demo Traveler ${String(i+1).padStart(2,"0")}`,coach:`C${i%8+1}`,seat:`${i%60+1}A`,status:i===29?"cancelled":"confirmed"}));
+// Preserve every previous reference; new departures serve all eastern platforms.
+for(let i=0;i<8;i++){
+ const id=`train-${21+i}`;
+ demoTrains.push({id,number:`RN${2021+i}`,name:["Sapphire Wayfarer","Eastwind Link","Lantern Coast","Horizon Student Express","Starlight Connector","Marigold Arrow","Cloudhaven Express","Willow Intercity"][i]!,origin:"Aster Junction",destination:"New Coral City",departure:`20:${String(i*5).padStart(2,"0")}`,platformId:`platform-${13+i}`,status:"on-time"});
+ demoTickets.push({reference:`RN-DEMO-${1031+i}`,trainId:id,passenger:`Demo Traveler ${31+i}`,coach:"C2",seat:`${11+i}A`,status:"confirmed"});
+}
+export const scriptedDemo={reference:"RN-DEMO-1035",origin:"gate-2",destination:"platform-17",changedPlatform:"platform-11"};
 export const normalizeReference=(value:string)=>value.trim().toUpperCase();
 export type LookupResult={status:"found";ticket:DemoTicket;train:DemoTrain}|{status:"invalid"|"missing"|"unavailable";message:string};
 export function lookupTicket(reference:string,trains:readonly DemoTrain[]=demoTrains,tickets:readonly DemoTicket[]=demoTickets):LookupResult {
