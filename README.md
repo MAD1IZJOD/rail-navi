@@ -1,12 +1,12 @@
-# RailNavi
+# RailNavi — Batch 3
 
-RailNavi is an indoor station-navigation proof of concept for Indian railway passengers. Batch 1 provides a working local station simulation, weighted routing engine and interactive navigation experience.
+RailNavi is a working indoor railway-navigation proof of concept with a five-level fictional station, synthetic tickets, weighted routing, an interactive SVG map and a deterministic passenger-navigation simulator.
 
-**RailNavi Demo Central is completely fictional.** Its map, passenger facilities, distances and availability are synthetic. This project uses no official railway logos, live railway feeds, real tickets or passenger information. Batch 1 is not deployed by this repository setup.
+**RailNavi Demo Central is entirely fictional.** Maps, bookings, departures, passenger names, outages and movement are synthetic. There are no live railway APIs, scraped PNRs, GPS tracking, official logos or claimed railway partnerships. Batch 4 is not implemented.
 
-## Run locally
+## Run
 
-Use Node.js 22.12 or newer and npm. Node 24 was used for local verification.
+Node.js 22.12+ and npm are required. Node 24 was used for verification.
 
 ```powershell
 git clone https://github.com/MAD1IZJOD/rail-navi.git
@@ -15,185 +15,132 @@ npm ci
 npm run dev
 ```
 
-Open [RailNavi locally](http://localhost:3000). Select **Explore Demo Station** to open `/demo`.
+For the supplied checkout, use `D:\personal projects\rail navi`. Open [RailNavi locally](http://localhost:3000). No environment variables, secrets, accounts, paid mapping APIs or database are required.
 
-For the supplied checkout, run the commands from `D:\personal projects\rail navi`.
+## Reproduce the complete demo
 
-No environment variables, API keys, database, paid mapping service or location permission are required. The lockfile pins dependency resolution.
+1. Choose **Find My Platform**. Select **Platform 17 simulator demo · RN-DEMO-1035**, then **Find ticket**.
+2. Choose **Gate 2**. Select **Navigate to Platform 17** and inspect the calculated route. Default preference is Fastest.
+3. Select **Start simulated navigation**. Pause and Resume work at any position; **Next point** completes the current graph connection and pauses at the next decision point.
+4. To reproduce the tested sequence, pause and select **Next point** until the passenger reaches Level +1 at the west landing of Foot Overbridge B. The floor changes only when the vertical edge completes.
+5. Open **Demo controls**. Choose **Main concourse** as the alternate connection, then **Take selected path**. Pause and select **Next point** to finish that permitted detour. The engine detects the deviation and calculates a route from that actual landing.
+6. Under **Other crossing outage**, select **Foot Overbridge B**. The route updates from the current position and the crossing becomes amber on its floor.
+7. Close Demo controls. Open **Simulate platform change** above the map and select **Platform 11**. Ticket assignment, destination and route update together.
+8. Use **Fit to route** to see the replacement path. Open Demo controls, choose **120×**, close the controls and Resume.
+9. The passenger follows actual edges and vertical connectors to Platform 11. Arrival is announced and remaining distance/time reach zero.
 
-## Try the complete journey
+This sequence is exercised by the desktop and mobile browser tests. No route geometry is hardcoded.
 
-1. Open the demo and select Gate 1 as the starting point and Platform 10 as the destination. On mobile, expand **Plan your station journey**.
-2. Choose Fastest, Shortest, Wheelchair or Avoid stairs, then select **Find my route**. The top **Try Gate 1 to Platform 10** action also computes this journey.
-3. Read the distance, estimated time and actual directions. Select a direction to display its level, or use the +1 / 0 / âˆ’1 floor controls.
-4. Select **Switch to a step-free route** to compute a lift-based alternative.
-5. Change the gate, checkpoint, destination or preference and calculate again. Editing the inputs clears the previous route so it cannot be mistaken for the new selection.
-6. Under **Passage availability**, simulate the Bridge A walkway closure and calculate another route.
-7. Open **Facilities**, search or filter, select a facility to locate it, then select **Route here**.
+For accessibility, switch to a step-free route before starting. **Simulate all lifts unavailable** honestly blocks a wheelchair route; restoring lifts permits recalculation without substituting stairs. An occupied failed lift stops the simulation in place until restored.
 
-The map supports pointer dragging, two-finger pinch, scroll zoom, zoom buttons, reset, and keyboard arrows / + / âˆ’ when focused. Floor badges indicate levels used by the route. S / E / L signs mark shared stair, escalator and lift access bays. Zooming reveals facility markers; the Facilities tool shows them explicitly.
+**RN-DEMO-1001** still resolves to the earlier Platform 10 demo. All 30 previous references remain valid. There are now 28 departures and 38 synthetic bookings, with assignments covering all 20 platforms. Train-name, demo-number and one-character word-typo search are available without a booking.
 
-On mobile, the planner and directions live in an expandable bottom panel while the route summary remains visible. The map retains its view when switching floors so matching landings stay aligned.
+## Station inventory and topology
 
-## Batch 1 capabilities
-
-- Next.js App Router, strict TypeScript and Tailwind CSS.
-- Original interactive SVG station plan, platform and track geometry, entrances, facility inspection and actual graph-edge route overlays.
-- Deterministic Dijkstra routing with availability checks, directed escalators, wheelchair restrictions and floor-aware instructions.
-- Four navigation preferences, manually selected entrance/checkpoint positioning, route recalculation, closure alternatives and structured invalid/unreachable results.
-- Responsive landing page and navigation experience with accessible form labels, keyboard map controls and reduced-motion support.
-
-Live PNR lookup and live positioning are not implemented. Synthetic booking lookup is available in Batch 2.
-
-## Station inventory
-
-| Item | Count |
+| Item | Actual count |
 | --- | ---: |
-| Platforms | 12 |
-| Station levels | 3 |
-| Entrance/exit gates | 4 |
-| Railway tracks shown | 13 |
-| Foot overbridges | 2 |
-| Lower passenger passages | 1 |
-| Main / secondary concourses | 2 |
-| Navigation nodes | 154 |
-| Graph edges | 237 |
-| Physical vertical access points | 42 |
-| Vertical mode connections | 100 |
-| Stair connections | 42 |
-| Upward-only escalator connections | 28 |
-| Lift connections | 30 |
-| Connected passenger facilities | 48 |
-| Manual location anchors | 8 |
+| Platforms | 20 |
+| Levels | 5 |
+| Public gates | 8 |
+| Foot overbridges | 4 |
+| Passenger underpasses | 2 |
+| Facilities / landmarks with facility anchors | 124 |
+| Navigation nodes | 416 |
+| Graph edges | 661 |
+| Vertical access points | 112 |
+| Vertical mode connections | 270 |
+| Stairs / lifts / upward-only escalators | 112 / 92 / 66 |
+| Manual positioning anchors | 13 |
 
-Each edge record is a connection, not two records for opposite directions. Bidirectional walking, stairs and lifts can be traversed both ways. Escalators run from Level 0 upwards to Level +1 only. Adjacent modes at a shared landing are modeled as parallel edges, rather than separate passenger coordinates.
+Levels: −2 metro interchange, −1 underpasses/lower concourses, 0 terminals/platforms, +1 Bridges A/B, +2 Bridges C/D. Platforms are grouped West 1–6, Central 7–12 and East 13–20.
 
-Levels are âˆ’1 (lower passage, elevation âˆ’5 m), 0 (concourses and platforms), and +1 (foot overbridges, elevation +6 m). Platform numbers run west to east, with gates on the outside of the track field. Passengers can cross the tracks only on an explicitly modeled bridge or lower passage.
+The main and secondary terminals run along the outside of the track field. Bridges A and B span all platforms. Upper Bridge C serves Platforms 1–10 from the main terminal; upper Bridge D serves Platforms 11–20 from the secondary terminal. Both underpasses provide alternative cross-station circulation. Outer elevated and lower concourses link their respective crossings without walking through tracks.
 
-Facilities include washrooms, water, food, tea, convenience shops, a pharmacy, information desks, ticket counters, waiting rooms, accessible facilities, and security/help points. Every facility has its own ID, category, position, level and connected graph node.
+A lower transfer corridor reaches the fictional metro interchange via explicit lift/stair hubs. Gates 2, 4 and 7 provide bus/taxi-facing access. Water, washrooms, tea stalls, assistance points, waiting zones, ticketing, food courts, retail and a pharmacy are connected graph destinations.
+
+Shared landing coordinates represent adjacent equipment bays, not detailed equipment footprints. Edge records are connections: most are bidirectional, while escalators are upward-only. Physical access-point counts differ from travel-mode counts.
 
 ## Architecture
 
 ```text
-src/app/                         App Router pages, metadata and responsive styles
-src/components/station-map.tsx   SVG geometry, interaction and floor-specific route rendering
+src/lib/navigation/types.ts       Shared station, geometry, graph and route contracts
+src/lib/station/blueprint.ts      Physical regions, track restrictions, crossings and facility anchors
+src/lib/station/topology.ts       Deterministic graph compilation from the physical plan
+src/lib/station/demo-station.ts   Public station export, availability groups and inventory
+src/lib/station/validate.ts       Exact line/rectangle coverage, restricted-area and connectivity validation
+src/lib/station/cartography.ts   Palette, bounded camera fitting and priority/collision label placement
+src/lib/navigation/engine.ts      Framework-independent Dijkstra and derived route instructions
+src/lib/navigation/simulator.ts   Pure movement, progress, guidance, deviation and rerouting state
+src/lib/positioning/manual.ts     Async provider interface resolving known graph checkpoints
+src/lib/tickets/demo.ts           Synthetic bookings, train search and immutable platform assignments
+src/components/station-map.tsx    SVG layers, gestures, camera, passenger marker and map controls
+src/components/use-navigation-simulation.ts
+                                 Cleaned-up simulation clock and controller
+src/components/simulation-controls.tsx
+                                 Passenger transport controls and optional operator simulations
 src/components/station-navigator.tsx
-                                Journey form, routing state, directions and facility inspection
-src/components/facility-icon.tsx Category icons and labels
-src/lib/navigation/types.ts     Stations, levels, platforms, facilities, anchors, graph and route types
-src/lib/navigation/engine.ts     Pure TypeScript validation, Dijkstra and derived instructions
-src/lib/station/demo-station.ts  Deterministic station graph, geometry and inventory
-src/lib/positioning/manual.ts    Async positioning-provider contract and manual implementation
-tests/engine.test.ts             Small, hand-verifiable algorithm fixtures
-tests/station.test.ts            Station connectivity, geometric safety, facilities and positioning
-tests/browser/navigation.spec.ts
-                                Complete desktop/mobile production-browser checks
+                                 Shared destination, train assignment and availability state
 ```
 
-The engine depends only on TypeScript types. It does not import React, Next.js, a browser API, a UI package or station-specific data. A future React Native client can reuse it.
+### Routing and geometry
 
-The station contract groups its graph, geometry and anchors together. A different station can supply the same contract. There is no backend or persistence layer in Batch 1.
+One plan unit is 0.5 metres. Walking edges use geometric distance and a 1.2 m/s estimated speed. Vertical costs scale with explicit level separation: stairs 12 m / 24 s per level, escalators 14 m / 18 s per level, lifts 8 m per level and 40 s + 8 s per level including a fixed wait allowance.
 
-### Coordinates, costs and eligibility
+Shortest minimizes distance. Fastest minimizes duration. Wheelchair minimizes duration after excluding inaccessible nodes/edges, stairs and escalators. Avoid stairs excludes stairs but permits escalators and lifts. Closed or unavailable connections are filtered before Dijkstra. Validation rejects invalid graph IDs, costs and floor transitions.
 
-The SVG plan uses one coordinate system: **one plan unit equals 0.5 metres**. Walking edge length is Euclidean plan distance, rounded to 0.1 m. These edges remain inside a platform, concourse or permitted pedestrian passage. Traversal duration is distance / **1.2 m/s**, rounded to 0.1 s.
+The physical validator checks complete walking segments as unions of exact line/rectangle intervals, rather than relying on sparse sampling. It checks restricted tracks, platform geometry, aligned vertical connectors, facility anchors, accessible reachability and ticket platform IDs. Existing gate/platform coverage tests exercise all 640 gate/platform/preference combinations.
 
-Vertical edges have explicit path length and time: stairs 12 m / 24 s, escalators 14 m / 18 s, and lifts 8 m / 48 s. Lower-passage connections add 1 m to path length. Lift duration includes a fixed waiting and boarding allowance. These values are deliberately simplified estimates, not surveyed measurements.
+### Map system
 
-| Preference | Optimization cost | Eligibility |
-| --- | --- | --- |
-| Shortest | Total edge distance in metres | All available permitted modes |
-| Fastest | Total edge duration in seconds | All available permitted modes |
-| Wheelchair | Total edge duration in seconds | Accessible nodes and edges; excludes all stairs and escalators |
-| Avoid stairs | Total edge duration in seconds | Excludes stairs; allows escalators and lifts |
+The light SVG map has independently controllable architecture, tracks, platforms, passages, connectors, facilities, labels, route, passenger and endpoint layers. Track fields are muted; blue routes use a white contrast casing; the passenger has a directional arrow.
 
-Wheelchair and Avoid stairs are hard filters, not soft penalties. Temporarily unavailable or explicitly blocked edges are excluded for every mode. A directed edge can only be used in its declared direction.
+Labels use deterministic priority placement in CSS pixels with collision rejection. Platform numerals stay within the visible part of a platform. Major regions appear in overview; connectors and important facilities become visible as zoom increases; minor facilities and landmark names appear at higher detail. Facilities can also be explicitly enabled and searched. Marker placement avoids collisions.
 
-Dijkstra uses nonnegative costs and deterministic insertion order for equal costs, with O(VÂ² + E) complexity. This is adequate for the 154-node demonstration; a heap or preprocessing can be introduced if measured larger-station performance warrants it. Graph validation rejects duplicate IDs, missing endpoints, invalid costs, and walking edges that change floor.
+Fit-to-station, fit-to-route and passenger recentering share bounded camera utilities. Manual pan/zoom suspends follow. Recenter resumes it. Floor coordinates remain aligned. A dashed landmark ring identifies the next instruction's graph anchor. Unavailable crossing surfaces are amber. Every route segment uses actual ordered graph endpoints.
 
-A generated route contains availability status, ordered nodes/edges, total path distance (including vertical travel), estimated duration, floor changes and instructions. The interface rounds distance to metres and duration up to whole minutes. Instructions group contiguous walks with matching passage labels and headings, then describe each actual vertical edge. The SVG draws only same-floor edges on the selected level and marks the actual floor-change landings.
+Animation uses CSS and the native Web Animations API, with reduced-motion support, finite animations and cleanup. Static architecture is memoized; stable availability data avoids rebuilding it on each passenger update. No 3D engine or new animation dependency was added.
 
-### Positioning and future integrations
+### Movement and rerouting
 
-The asynchronous `PositioningProvider` contract resolves a location to a known graph anchor. Batch 1's manual provider resolves only declared manual checkpoints. It does not track a moving passenger.
+Simulation advances in deterministic 0.1-second ticks. The speed multiplier changes simulated elapsed time, not route geometry. Edge duration determines progress; walking coordinates are interpolated along the edge, and the directional arrow uses the edge heading. A vertical connection retains its source floor until its endpoint is reached.
 
-Future authorized QR or BLE providers should return a verified graph node through this contract. Raw browser GPS is not treated as accurate indoor positioning. Ticket/PNR-to-platform lookup should be a separate authorized service that resolves to a platform ID; it should not modify the routing algorithm.
+Current/upcoming guidance, decision distance, remaining route distance and ETA derive from the current ordered edge and structured route instructions. Floor transitions announce the actual connector and destination level through the status text.
 
-## Commands and verification
+For mid-walk rerouting, a temporary graph anchor is inserted at the exact interpolated position. Remaining/return edge costs are proportional to physical position, with directionality and accessibility preserved. There is no snap back to an entrance. A closing occupied walking connection permits egress along the already traversed portion, not travel through the closed section.
 
-```powershell
-npm run dev          # Development server
-npm run typecheck    # Strict TypeScript checks
-npm run lint         # ESLint, zero warnings allowed
-npm test             # Vitest unit tests
-npm run test:watch   # Unit test watch mode
-npm run build        # Production build
-npm run start        # Serve the production build
-```
+An occupied vertical connector completes to its landing before a queued destination change is applied. If it fails, movement stops in place until restored. Unreachable routes show an honest failure and fictional information-desk guidance.
 
-Browser checks run against a production server on port 3100, started and stopped by Playwright:
+Wrong turns are selected only at verified decision points and traverse a permitted connection before rerouting. Train assignments and station availability remain authoritative in the explorer; UI panels do not maintain competing platform assignments.
+
+## Checks
 
 ```powershell
-npx playwright install chromium
+npm run typecheck
+npm run lint
+npm test
 npm run build
+npx playwright install chromium
 npm run test:e2e
 ```
 
-On a Linux CI runner, install browser system dependencies with `npx playwright install --with-deps chromium` first. Port 3100 must be free.
+Playwright starts/stops a production server on port 3100, which must be free. On Linux CI, use `npx playwright install --with-deps chromium` first. Tests fail on runtime/console errors and compare route geometry against graph calculations.
 
-The checked suite includes **316 unit tests** and **22 browser cases** (eleven journeys/interactions each on desktop 1440Ã—1000 and mobile 390Ã—844). Browser checks compare rendered SVG edge IDs against the calculated route on every floor and fail on console or runtime errors, including hydration errors.
+The suite includes small hand-verifiable routing fixtures, complete station geometry/reachability checks, synthetic ticket tests, deterministic simulation and outage recovery tests, and production browser journeys. Responsive browser checks and screenshots use widths 360, 390, 430, 768, 1280 and 1440, including reduced motion. Screenshots/traces are local ignored artifacts in `test-results/`.
 
-Unit coverage includes same-level and multi-floor paths, shortest versus fastest choices, exact costs, accessibility, avoid-stairs filtering, one-way escalators, temporary closures, alternate routes, disconnected destinations, invalid IDs, all 192 gate/platform/preference combinations, every facility's wheelchair reachability, manual anchors, and geometric containment of every walking edge.
+## Deployment
 
-Browser screenshots and failure traces are generated in ignored `test-results/`. They are local artifacts, not repository source.
+Import [MAD1IZJOD/rail-navi](https://github.com/MAD1IZJOD/rail-navi) into Vercel with the Next.js preset, repository root, branch main, Node 22.12+ or 24, install `npm ci` and build `npm run build`. Use default framework output settings. No environment variables are required. Verify `/`, direct `/ticket`, `/demo`, reloads and touch layouts at the actual deployed URL. A local build is not evidence of remote deployment.
 
-## Vercel deployment
+## Limits and future work
 
-This is a conventional Next.js application with no custom runtime or native application dependencies.
+- This is a schematic fictional station and synthetic simulation, not surveyed railway data or live indoor positioning.
+- State and assignment/outage changes are local to the explorer and reset on reload. They are not a shared railway operations feed.
+- Lift waits, congestion, speed and equipment bays are simplified. Positions during a vertical ride retain the source-floor view until the landing.
+- Camera follow is a bounded 2D simulation; screen-space label widths use a deterministic text estimate rather than typographic shaping.
+- Tick timing is deterministic, not a precision wall-clock model. A background/throttled browser can advance more slowly in real time.
+- Chromium desktop/touch emulation and reduced motion are tested. Physical Android/iOS devices, Safari/Firefox, screen-reader acceptance and long-duration memory profiling remain future validation.
+- The existing ESLint 9/framework-plugin compatibility constraint and moderate development-tool dependency advisories remain; forced upgrades should not be applied without compatibility testing.
+- There is no offline cache, real PNR integration, scanned ticket recognition, mobile native app or multi-station ingestion.
 
-1. Import [MAD1IZJOD/rail-navi](https://github.com/MAD1IZJOD/rail-navi) into Vercel using the existing GitHub repository and branch `main`.
-2. Select the Next.js framework preset and the repository root as the root directory.
-3. Use Node.js 22.12+ (or Node 24), install command `npm ci`, and build command `npm run build`. Keep the framework's default output settings.
-4. No environment variables or external services are needed.
-5. Deploy, then verify the homepage, direct access and reload at `/demo`, routing, floor changes and mobile layout at the actual deployment URL.
-
-Read the [Next.js deployment documentation](https://nextjs.org/docs/app/getting-started/deploying). A successful local production build demonstrates readiness; it does not verify a remote deployment.
-
-## Known limitations
-
-- The station is schematic, deterministic and fictional. This is not a surveyed map or an operational safety system for any real station.
-- Positioning is manually selected and does not update as someone walks. There is no background tracking or arrival detection.
-- Waiting, congestion, outages and walking speed are simplified. Bridge closure is an in-memory simulation and resets on reload.
-- Vertical modes share a landing coordinate; individual equipment footprints and lift queues are not modeled.
-- The app is English-only and browser-based. It has no offline cache, mobile application, ticket scanning, live PNR lookup, live platform assignment or multi-station selection.
-- Browser automation verifies Chromium desktop and a touch-enabled mobile viewport. Real-device, Safari/Firefox and assistive-technology acceptance testing remain future work.
-- The framework's lint plugins currently require ESLint 9-compatible peer dependencies. ESLint 9 reports an end-of-support notice on installation; an ESLint 10 upgrade must wait for compatible framework plugins or a deliberate lint-config migration. The dependency audit reports moderate development-tool advisories in the lint dependency tree. `npm audit --omit=dev` reports zero production advisories at verification time. Do not apply forced audit upgrades without retesting compatibility.
-
-## Future batches
-
-Batch 1 stops at the station simulation and navigation foundation.
-
-Batch 2 can introduce a separately authorized ticket/PNR-to-platform integration, clear data provenance and platform-change handling. Later batches can add verified indoor-positioning providers, surveyed station ingestion and validation, equipment availability management, multiple stations, localization, offline capabilities and Android/iOS clients.
-
-The existing station, platform, anchor and route types provide extension points. Real station ingestion will need stronger geometry validation, operational ownership, calibrated traversal times, current lift availability and user acceptance checks before real passenger use.
-
-## Batch 2: ticket navigation and redesigned experience
-
-Batch 2 adds a midnight/navy and cyan consumer interface, a rebuilt homepage, ticket and train discovery, a prominent next-direction card, larger controls, route drawing, floor fades and animated recentering. Motion uses native CSS and the Web Animations API; no GSAP, Anime.js or Three.js dependencies are installed. Animations respect reduced motion and cancel on cleanup.
-
-Choose **Find My Platform**, use **Try a sample · RN-DEMO-1001**, then **Find ticket**. This booking resolves to Moonrise Express on Platform 10. Choose a known checkpoint and **Navigate to Platform**. **Find a train** supports fictional names, demo numbers and single-character word typos.
-
-The typed local dataset in `src/lib/tickets/demo.ts` contains 20 fictional departures and 30 synthetic bookings. Each train carries its platform assignment; ticket records reference the train ID. Real numeric PNRs are rejected. Missing, cancelled and invalid bookings display explicit errors. Departure times belong to a synthetic service day in IST, not the current railway timetable.
-
-During a booked-train journey, open **Simulate platform change** above the map and select another platform. The train assignment is updated immutably, the old route is invalidated and the routing engine computes a replacement from the manually selected checkpoint with current preferences and closure restrictions. Reopening ticket lookup reads the updated assignment. Choosing an unrelated manual destination ends the booked-train association.
-
-Assignments are in memory within the explorer. Reloading or leaving the explorer resets the simulation. This is intentional local demo behavior, not a shared operational feed. No browser GPS, live railway APIs, scraping, passenger tracking or movement simulation is included.
-
-### Design audit and verification scope
-
-The initial audit captured homepage and station screens at widths 360, 390, 430, 768, 1280 and 1440. Key issues were tiny typography, low-contrast signage, excess whitespace in the narrow map, planner-heavy hierarchy and hidden guidance. The rebuild prioritizes direct ticket entry, readable route instructions, explicit active levels and a compact mobile sheet. System fonts avoid remote font requests.
-
-The Batch 1 routing tests and browser journeys remain, with homepage assertions updated for the new content. Ticket tests cover normalization, missing and cancelled records, train search, immutable assignment changes, graph routing, accessibility and fully blocked destinations. Browser tests add the complete synthetic ticket/platform-change journey, clean lookup state and all six widths under reduced motion. Chromium desktop and mobile emulation are verified; real-device and assistive-technology acceptance remain future work.
-
-Batch 3 is not implemented. The provider contract, ordered route edges, floor-aware instructions and single train-assignment source can support a later verified passenger-position/movement model and rerouting from a current anchor. The current next-direction card describes the first route instruction; it does not pretend to track progress.
+The separate station, geometry, topology, routing and simulation contracts can support later verified positioning providers, smart facility search, passenger assistance and route planning with multiple stops. Those Batch 4 features are not implemented here.
 
