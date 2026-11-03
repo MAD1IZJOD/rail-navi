@@ -1,5 +1,6 @@
 import {buildStation} from "./topology";
-export const demoStation=buildStation();
+import {enrichStation} from "../facilities/catalog";
+export const demoStation=enrichStation(buildStation());
 export const bridgeAEdgeIds=demoStation.edges.filter(e=>e.kind==="walk"&&e.label==="Foot Overbridge A").map(e=>e.id);
 export const liftEdgeIds=demoStation.edges.filter(e=>e.kind==="lift").map(e=>e.id);
 export const stationMetrics={
