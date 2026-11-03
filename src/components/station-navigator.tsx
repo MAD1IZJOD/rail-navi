@@ -45,14 +45,15 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [floor, setFloor] = useState<FloorId>(0);
   const [stops, setStops] = useState<JourneyStop[]>([]);
   const onVisit = useCallback((id: string) => setStops(current => current.filter(s => s.id !== id)), [setStops]);
-  const sim = useNavigationSimulation(station, setFloor, onVisit, setStops);
+  const [plannedRoute, setRoute] = useState<GeneratedRoute | null>(null);
+  const onStop = useCallback(() => setRoute(null), [setRoute]);
+  const sim = useNavigationSimulation(station, setFloor, onVisit, setStops, onStop);
   const [facilityAvailability, setFacilityAvailability] = useState<Record<string, boolean>>({});
   const [buffer, setBuffer] = useState(300);
   const [matchedIds, setMatchedIds] = useState<string[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<FacilityMatch>();
   const [liftsClosed, setLiftsClosed] = useState(false);
   const [crossingOutage, setCrossingOutage] = useState("");
-  const [plannedRoute, setRoute] = useState<GeneratedRoute | null>(null);
   const route = sim.session?.route ?? plannedRoute;
   const guidance = sim.session ? sessionGuidance(sim.session) : null;
   const blockedIds = useMemo(() => [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === crossingOutage).map(e => e.id)], [bridgeClosed, liftsClosed, crossingOutage]);
