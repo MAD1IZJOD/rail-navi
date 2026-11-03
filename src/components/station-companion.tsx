@@ -45,7 +45,7 @@ export function FacilityDiscovery(p:DiscoveryProps){
 }
 interface DetailProps{facility:Facility;match?:FacilityMatch;now:number;availability:Record<string,boolean>;trainActive:boolean;pending:boolean;onClose:()=>void;onAdd:(accessible?:boolean)=>void;onMain:()=>void}
 export function FacilityDetails({facility:f,match:r,now,availability,trainActive,pending,onClose,onAdd,onMain}:DetailProps){
- const open=r?.open??facilityAvailable(f,now,availability),reachable=r?.reachable??true;
+ const open=facilityAvailable(f,now+(r?.walkingSeconds&&Number.isFinite(r.walkingSeconds)?r.walkingSeconds:0),availability),reachable=r?.reachable??true;
  return <div className="facility-detail companion-detail" role="region" aria-label="Selected facility">
  <button type="button" className="detail-close icon-button" aria-label="Close facility details" onClick={onClose}><X size={18}/></button>
  <div className="detail-title"><span className="facility-icon"><FacilityIcon category={f.category} size={22}/></span><div><small>{categoryNames[f.category]} · {floorLabel(f.floor)}</small><h3>{f.name}</h3></div></div>
