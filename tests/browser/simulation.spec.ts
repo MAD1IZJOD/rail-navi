@@ -18,6 +18,7 @@ test("scripted Platform 17 journey crosses levels deviates reroutes and arrives 
  const alternative=page.getByLabel("Alternative connection");
  const target=await alternative.locator("option").nth(1).getAttribute("value");expect(target).toBeTruthy();
  await alternative.selectOption(target!);
+ await page.getByRole("button",{name:"Take selected path",exact:true}).click();
  await page.getByRole("button",{name:"Pause",exact:true}).click();await page.getByRole("button",{name:"Next decision point",exact:true}).click();
  await expect(page.locator(".simulation-feedback")).toContainText("Wrong turn detected");
  await page.getByLabel("Crossing outage",{exact:true}).selectOption("Foot Overbridge B");
