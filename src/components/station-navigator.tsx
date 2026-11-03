@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowRight, ArrowUpRight, Accessibility, Check, ChevronDown, ChevronUp,
   Clock3, Flag, Footprints, Layers3, LoaderCircle, MapPin, Navigation,
-  Route as RouteIcon, Search, ShieldCheck, Sparkles, TrainFront, X,
+  Route as RouteIcon, ShieldCheck, Sparkles, TrainFront,
 } from "lucide-react";
 import { findRoute, floorLabel } from "@/lib/navigation/engine";
-import type { Facility, FacilityCategory, FloorId, GeneratedRoute, RoutePreference } from "@/lib/navigation/types";
+import type { Facility, FacilityCategory, FloorId, GeneratedRoute, JourneyStop, RoutePreference, RoutingOptions } from "@/lib/navigation/types";
 import { manualPositioningProvider } from "@/lib/positioning/manual";
 import { bridgeAEdgeIds, liftEdgeIds, demoStation as station } from "@/lib/station/demo-station";
-import { FacilityIcon, facilityLabels } from "./facility-icon";
+import { FacilityDiscovery, FacilityDetails, JourneyPlanning } from "./station-companion";
+import { discoverFacilities, toJourneyStop, type FacilityMatch } from "@/lib/facilities/search";
+import { facilityAvailable } from "@/lib/facilities/catalog";
+import { insertBestStop, MAX_OPTIONAL_STOPS, optimizeStops, planJourney } from "@/lib/journey/planner";
+import { assessTiming, serviceTime } from "@/lib/journey/time";
+import { positionContext } from "@/lib/navigation/context";
 import { useNavigationSimulation } from "./use-navigation-simulation";
 import { SimulationControls } from "./simulation-controls";
 import { sessionGuidance } from "@/lib/navigation/simulator";
@@ -38,7 +43,13 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [preference, setPreference] = useState<RoutePreference>("fastest");
   const [bridgeClosed, setBridgeClosed] = useState(false);
   const [floor, setFloor] = useState<FloorId>(0);
-  const sim = useNavigationSimulation(station, setFloor);
+  const [stops, setStops] = useState<JourneyStop[]>([]);
+  const onVisit = useCallback((id: string) => setStops(current => current.filter(s => s.id !== id)), []);
+  const sim = useNavigationSimulation(station, setFloor, onVisit);
+  const [facilityAvailability, setFacilityAvailability] = useState<Record<string, boolean>>({});
+  const [buffer, setBuffer] = useState(300);
+  const [matchedIds, setMatchedIds] = useState<string[]>([]);
+  const [selectedMatch, setSelectedMatch] = useState<FacilityMatch>();
   const [liftsClosed, setLiftsClosed] = useState(false);
   const [crossingOutage, setCrossingOutage] = useState("");
   const [plannedRoute, setRoute] = useState<GeneratedRoute | null>(null);
@@ -53,29 +64,70 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [category, setCategory] = useState<FacilityCategory | "all">("all");
   const [query, setQuery] = useState("");
   const directionsRef = useRef<HTMLElement>(null);
-  const facilityResults = useMemo(() => station.facilities.filter(facility =>
-    (category === "all" || facility.category === category) &&
-    facility.name.toLowerCase().includes(query.toLowerCase().trim())),
-  [category, query]);
+  const journeyRef = useRef<HTMLDivElement>(null);
+  const options = useMemo(() => ({ preference, blockedEdgeIds: blockedIds }), [preference, blockedIds]);
+  const sourceId = station.anchors.find(a => a.id === origin)?.nodeId ?? origin;
+  const context = positionContext(station, sourceId, sim.session, options);
+  const direct = useMemo(() => findRoute(context.graph, context.startId, destination, options), [context.graph, context.startId, destination, options]);
+  const remainingRoute = route && guidance ? { ...route, durationSeconds: guidance.walkingSeconds, dwellSeconds: guidance.dwellSeconds } : route;
+  const timing = assessTiming(sim.nowSeconds, activeTrain ? serviceTime(activeTrain.departure) : undefined, remainingRoute, buffer);
+
+  function updateStops(next: JourneyStop[], nextPreference = preference) {
+    setStops(next); setPreference(nextPreference);
+    void calculate({ stops: next, preference: nextPreference, reason: "Optional stops updated. Your final destination is preserved." });
+  }
+  function addStop(f: Facility, accessible = false) {
+    if (stops.some(s => s.id === f.id) || sim.session?.currentStop?.id === f.id) return;
+    if (stops.length >= MAX_OPTIONAL_STOPS) { setPlatformNotice("Choose up to four optional stops. Remove one before adding another."); return; }
+    const nextPreference = accessible ? "wheelchair" : preference;
+    const opts = { ...options, preference: nextPreference };
+    const pos = positionContext(station, sourceId, sim.session, opts);
+    if (!pos.valid) { setPlatformNotice("Restore the occupied connector before planning this stop."); return; }
+    const next = insertBestStop(pos.graph, pos.startId, destination, stops, toJourneyStop(f, sim.nowSeconds, facilityAvailability), opts);
+    if (next.route.status !== "available") { setPlatformNotice(next.route.message); return; }
+    updateStops(next.stops, nextPreference); setSelectedFacility(undefined);
+    setPlatformNotice(f.name + " added. " + (activeTrain ? "Your train platform remains the final destination." : "Your final destination is preserved."));
+  }
+  function optimizeJourney() {
+    if (!context.valid) return;
+    const best = optimizeStops(context.graph, context.startId, destination, stops, options);
+    if (best.route.status !== "available") { setPlatformNotice(best.route.message); return; }
+    updateStops(best.stops); setPlatformNotice("Stop order optimized using actual walking connections. Final destination preserved.");
+  }
+  function moveStop(id: string, delta: number) {
+    const next = [...stops], i = next.findIndex(s => s.id === id), j = i + delta;
+    if (i < 0 || j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j]!, next[i]!]; updateStops(next);
+  }
+  function setFacilityAvailable(id: string, available: boolean) {
+    const next = { ...facilityAvailability, [id]: available }; setFacilityAvailability(next);
+    setPlatformNotice("Fictional facility availability updated." + (stops.some(s => s.id === id) ? " Pending stop reassessed; remove it if unavailable." : ""));
+    if (route || sim.session) void calculate({ availability: next, reason: "Facility availability changed. Pending stops reassessed." });
+  }
+  function changeClock(seconds: number) {
+    sim.setClock(seconds);
+    if (route || sim.session) void calculate({ now: seconds, reason: "Fictional clock updated. Facility opening hours and timing reassessed." });
+  }
 
   function invalidate() { sim.stop(); setRoute(null); setError(""); setPlatformNotice(""); }
   function changeAvailability(kind: "bridge" | "lifts", closed: boolean) {
     if (kind === "bridge") setBridgeClosed(closed); else setLiftsClosed(closed);
     if (sim.session) void calculate({ ...(kind === "bridge" ? {bridgeClosed: closed} : {liftsClosed: closed}), reason: kind === "bridge" ? "Bridge A availability changed. Route recalculated from the passenger position." : "Lift availability changed. Accessible routing restrictions remain enforced." });
-    else { setRoute(null); setError(""); }
+    else if (route) void calculate({ ...(kind === "bridge" ? {bridgeClosed: closed} : {liftsClosed: closed}) });
   }
   function changeCrossing(name: string) {
     setCrossingOutage(name);
     if (sim.session) void calculate({crossingOutage: name, reason: name ? name + " closed. Recalculating from your actual simulated position." : "Crossing restored. Route recalculated."});
-    else { setRoute(null); setError(""); }
+    else if (route) void calculate({crossingOutage: name});
   }
   function navigateTrain(trainId: string, anchorId: string) {
     const train = trains.find(item => item.id === trainId);
     const platform = station.platforms.find(item => item.id === train?.platformId);
     if (!platform || train?.status === "cancelled") { setRoute(null); setError("This demo departure is unavailable."); return; }
     setActiveTrainId(trainId); setOrigin(anchorId); setDestination(platform.nodeId);
-    setTicketOpen(false); setPlatformNotice("");
-    void calculate({ origin: anchorId, destination: platform.nodeId });
+    setTicketOpen(false); setPlatformNotice(""); setStops([]);
+    sim.setClock(Math.max(0, serviceTime(train!.departure) - 25 * 60));
+    void calculate({ origin: anchorId, destination: platform.nodeId, stops: [], now: Math.max(0, serviceTime(train!.departure) - 25 * 60) });
   }
   function changePlatform(platformId: string) {
     if (!activeTrain) return;
@@ -86,14 +138,30 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     setPlatformNotice(`Simulation: ${activeTrain.name} moved to Platform ${platform.number}. Route recalculated from your ${sim.session ? "current simulated position" : "selected checkpoint"}.`);
     void calculate({ destination: platform.nodeId, reason: "Platform assignment changed. Route recalculated from the current passenger position." });
   }
-  async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean; liftsClosed?: boolean; crossingOutage?: string; reason?: string } = {}) {
+  async function calculate(override: { origin?: string; destination?: string; preference?: RoutePreference; bridgeClosed?: boolean; liftsClosed?: boolean; crossingOutage?: string; reason?: string; stops?: JourneyStop[]; availability?: Record<string, boolean>; now?: number } = {}) {
     const chosenOrigin = override.origin ?? origin;
     const chosenDestination = override.destination ?? destination;
     const chosenPreference = override.preference ?? preference;
     const closure = override.bridgeClosed ?? bridgeClosed;
     const blocked = [...(closure ? bridgeAEdgeIds : []), ...((override.liftsClosed ?? liftsClosed) ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === (override.crossingOutage ?? crossingOutage)).map(e => e.id)];
+    const opts: RoutingOptions = { preference: chosenPreference, blockedEdgeIds: blocked };
+    const now = override.now ?? sim.nowSeconds;
+    const fromId = station.anchors.find(a => a.id === chosenOrigin)?.nodeId ?? chosenOrigin;
+    const pos = positionContext(station, fromId, override.origin ? null : sim.session, opts);
+    const pending = override.stops ?? stops;
+    const tentative = planJourney(pos.graph, pos.startId, chosenDestination, pending.map(s => ({...s, available: true})), opts);
+    let dwell = 0;
+    const ready = pending.map(stop => {
+      const visit = tentative.stopVisits?.find(s => s.id === stop.id);
+      const walking = tentative.edges.slice(0, visit?.edgeIndex ?? 0).reduce((n, e) => n + e.durationSeconds, 0);
+      const f = station.facilities.find(f => f.id === stop.id);
+      const available = !f || facilityAvailable(f, now + pos.prefixSeconds + walking + dwell, override.availability ?? facilityAvailability);
+      dwell += stop.dwellSeconds;
+      return {...stop, available};
+    });
+    setStops(ready);
     if (sim.session && !override.origin) {
-      sim.replan(chosenDestination, { preference: chosenPreference, blockedEdgeIds: blocked }, override.reason ?? "Route recalculated from the current simulated position.");
+      sim.replan(chosenDestination, { preference: chosenPreference, blockedEdgeIds: blocked }, override.reason ?? "Route recalculated from the current simulated position.", ready);
       setExpanded(false); return;
     }
     if (override.origin) sim.stop();
@@ -102,9 +170,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     try {
       const fix = await manualPositioningProvider.locate(station, chosenOrigin);
       if (fix.status !== "located") { setError(fix.message); setRoute(null); return; }
-      const result = findRoute(station, fix.position.nodeId, chosenDestination, {
-        preference: chosenPreference, blockedEdgeIds: blocked,
-      });
+      const result = planJourney(station, fix.position.nodeId, chosenDestination, ready, opts);
       setRoute(result);
       setTab("directions");
       if (result.status === "available") {
@@ -118,12 +184,17 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
     } finally { setComputing(false); }
   }
   function quickDemo() {
-    setActiveTrainId(""); setPlatformNotice("");
+    setActiveTrainId(""); setPlatformNotice(""); setStops([]);
     setOrigin("gate-1"); setDestination("p10-destination"); setPreference("fastest"); setBridgeClosed(false); setLiftsClosed(false); setCrossingOutage("");
-    void calculate({ origin: "gate-1", destination: "p10-destination", preference: "fastest", bridgeClosed: false, liftsClosed: false, crossingOutage: "" });
+    void calculate({ origin: "gate-1", destination: "p10-destination", preference: "fastest", bridgeClosed: false, liftsClosed: false, crossingOutage: "", stops: [] });
   }
-  function inspect(facility: Facility) {
-    setSelectedFacility(facility); setFloor(facility.floor);
+  function inspect(facility: Facility, match?: FacilityMatch) {
+    const found = match ?? discoverFacilities({station, position: context, finalId: destination, stops, options, now: sim.nowSeconds, availability: facilityAvailability, query: facility.name}).results.find(r => r.facility.id === facility.id);
+    setSelectedMatch(found); setSelectedFacility(facility); setFloor(facility.floor); setExpanded(false);
+  }
+  function showJourney() {
+    setTab("directions"); setExpanded(true);
+    requestAnimationFrame(() => journeyRef.current?.scrollIntoView({block: "start", behavior: "smooth"}));
   }
   function showDirections() {
     setTab("directions");
@@ -149,7 +220,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
       <div className="navigation-workspace">
         <aside className={`navigation-panel ${expanded ? "panel-expanded" : ""}`} aria-label="Journey planner and directions">
           <button type="button" className="mobile-panel-toggle" onClick={() => { if (!expanded && available) showDirections(); else setExpanded(!expanded); }} aria-expanded={expanded} aria-controls="planner-content">
-            <span className="mobile-grip" /><span><strong>{available ? `${minutes(guidance?.remainingSeconds ?? route.durationSeconds)} min · ${Math.round(guidance?.remainingDistance ?? route.distanceMeters)} m` : "Plan your station journey"}</strong><small>{available ? routeEnd : "Choose your start, platform and route"}</small></span>{expanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+            <span className="mobile-grip" /><span><strong>{available ? `${minutes(guidance?.remainingSeconds ?? (route.durationSeconds + (route.dwellSeconds ?? 0)))} min · ${Math.round(guidance?.remainingDistance ?? route.distanceMeters)} m` : "Plan your station journey"}</strong><small>{available ? routeEnd : "Choose your start, platform and route"}</small></span>{expanded ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
           </button>
           <div className="panel-content" id="planner-content">
             <div className="panel-tabs" role="tablist" aria-label="Station tools">
@@ -172,7 +243,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
               {available && <section ref={directionsRef} className="directions-section" aria-label="Calculated directions" aria-live="polite">
                 <div className="route-summary" data-testid="route-summary">
                   <div className="route-ready"><span className="status-dot" />YOUR ROUTE IS READY <span>{preferences.find(item => item.id === route.preference)?.name}</span></div>
-                  <div className="route-numbers"><strong>{minutes(route.durationSeconds)}<span> min</span></strong><i /><strong>{Math.round(route.distanceMeters)}<span> m</span></strong><small>{route.floorChanges.length} level changes</small></div>
+                  <div className="route-numbers"><strong>{minutes(guidance?.remainingSeconds ?? (route.durationSeconds + (route.dwellSeconds ?? 0)))}<span> min</span></strong><i /><strong>{Math.round(route.distanceMeters)}<span> m</span></strong><small>{route.floorChanges.length} level changes</small></div>
                   <p><span className="summary-a">A</span>{route.nodes[0]?.name}<ArrowRight size={13} /><span className="summary-b">B</span>{routeEnd}</p>
                   {route.preference !== "wheelchair" && <button type="button" className="text-button" onClick={() => { setPreference("wheelchair"); void calculate({ preference: "wheelchair" }); }}><Accessibility size={15} />Switch to a step-free route<ArrowUpRight size={14} /></button>}
                 </div>
@@ -181,15 +252,10 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
                 <p className="estimate-note">Estimates use a 1.2 m/s walking speed and fixed vertical travel times. Follow station signage in a real station.</p>
               </section>}
               {!available && !error && !sim.session && <div className="route-empty"><div><RouteIcon size={24} /></div><h3>A clear path starts here.</h3><p>Select your starting point and platform.<br />We’ll connect the dots, safely.</p><button type="button" className="text-button" onClick={quickDemo}>Try the Gate 1 → Platform 10 journey<ArrowRight size={14} /></button></div>}
-            </div> : <div className="facilities-panel" role="tabpanel" id="facilities-tab" aria-labelledby="facilities-tab-button">
-              <div className="panel-heading"><h2>Amenities along the way</h2><p>Find a quick stop or the help you need.</p></div>
-              <label className="facility-search"><Search size={16} /><input aria-label="Search facilities" placeholder="Water, tea, pharmacy…" value={query} onChange={event => setQuery(event.target.value)} /></label>
-              <label className="category-label" htmlFor="facility-category">FACILITY TYPE</label>
-              <select id="facility-category" className="category-select" value={category} onChange={event => setCategory(event.target.value as FacilityCategory | "all")}><option value="all">All facilities</option>{Object.entries(facilityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-              <p className="facility-count">{facilityResults.length} facilities across all levels · Select to locate</p>
-              <div className="facility-list">{facilityResults.map(facility => <button type="button" className={`facility-card ${selectedFacility?.id === facility.id ? "selected" : ""}`} key={facility.id} onClick={() => { inspect(facility); setExpanded(false); }}><span className="facility-icon"><FacilityIcon category={facility.category} size={18} /></span><span><strong>{facility.name}</strong><small>{floorLabel(facility.floor)} · {facilityLabels[facility.category]}</small></span><ArrowUpRight size={15} /></button>)}</div>
-              {facilityResults.length === 0 && <p className="no-results">No facilities match your search. Try another name or category.</p>}
+            </div> : <div role="tabpanel" id="facilities-tab" aria-labelledby="facilities-tab-button">
+              <FacilityDiscovery station={station} position={context} finalId={destination} stops={stops} options={options} now={sim.nowSeconds} availability={facilityAvailability} query={query} onQuery={setQuery} category={category} onCategory={setCategory} onInspect={inspect} onMatches={setMatchedIds}/>
             </div>}
+            <div ref={journeyRef}><JourneyPlanning station={station} route={remainingRoute} direct={direct.status === "available" ? {...direct, durationSeconds: direct.durationSeconds + context.prefixSeconds} : direct} stops={stops} visited={sim.session?.visitedStopIds ?? []} currentStop={sim.session?.currentStop} finalName={routeEnd ?? station.nodes.find(n => n.id === destination)?.name ?? "Your platform"} now={sim.nowSeconds} departure={activeTrain?.departure} buffer={buffer} onBuffer={setBuffer} onClock={changeClock} onDeparture={activeTrain ? value => setTrains(current => current.map(t => t.id === activeTrain.id ? {...t, departure: value} : t)) : undefined} onRemove={id => updateStops(stops.filter(s => s.id !== id))} onMove={moveStop} onClear={() => updateStops([])} onOptimize={optimizeJourney} onDwell={(id, value) => { if (Number.isFinite(value) && value >= 0 && value <= 1800) updateStops(stops.map(s => s.id === id ? {...s, dwellSeconds: value} : s)); }} availability={facilityAvailability} onAvailability={setFacilityAvailable}/></div>
             <div className="panel-footnote"><ShieldCheck size={14} />Synthetic station data. Real routing logic.</div>
           </div>
         </aside>
@@ -198,13 +264,14 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
           {activeTrain && <div className="train-control"><span><strong>{activeTrain.name}</strong> · Platform <b data-testid="active-platform">{activeTrain.platformId.split("-")[1]}</b></span><details><summary>Simulate platform change</summary><label htmlFor="simulate-platform">Demo assignment</label><select id="simulate-platform" value={activeTrain.platformId} onChange={event => changePlatform(event.target.value)}>{station.platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></details></div>}
           <div className="map-topbar"><div><span className="status-dot" /><strong>{floorLabel(floor)}</strong><span>{station.floors.find(item => item.id === floor)?.name}</span></div><button type="button" className={`facilities-toggle ${tab === "facilities" ? "active" : ""}`} onClick={() => { setTab(tab === "facilities" ? "directions" : "facilities"); setExpanded(true); }}><MapPin size={15} /><span>Facilities</span></button></div>
           {bridgeClosed && <div className="closure-banner">Bridge A walkway closed · Routes use an alternative crossing</div>}
-          <StationMap station={station} floor={floor} route={sim.session?.status === "blocked" ? null : route} passenger={sim.session?.position} passengerStatus={sim.session?.status} destinationId={sim.session?.destinationId} unavailableEdgeIds={blockedIds} landmarkNodeId={guidance?.current?.nodeIds.at(-1)} showFacilities={tab === "facilities"} facilityCategory={category} selectedFacilityId={selectedFacility?.id} onFacilitySelect={inspect} onPassengerFloor={setFloor}>
+          <StationMap station={station} floor={floor} route={sim.session?.status === "blocked" ? null : route} passenger={sim.session?.position} passengerStatus={sim.session?.status} destinationId={sim.session?.destinationId} unavailableEdgeIds={blockedIds} landmarkNodeId={guidance?.current?.nodeIds.at(-1)} showFacilities={tab === "facilities"} facilityCategory={category} selectedFacilityId={selectedFacility?.id} matchingFacilityIds={tab === "facilities" ? matchedIds : undefined} previewRoute={selectedMatch?.reachable ? selectedMatch.route : undefined} onFacilitySelect={inspect} onPassengerFloor={setFloor}>
           <div className="floor-switcher" aria-label="Select station level"><span>LEVELS</span>{station.floors.map(item => <button type="button" key={item.id} aria-label={`Show ${floorLabel(item.id)}`} aria-pressed={floor === item.id} onClick={() => setFloor(item.id)}><strong>{item.id > 0 ? "+" : ""}{item.id}</strong><span>{item.name}</span>{route?.nodes.some(node => node.floor === item.id) && <i className="floor-route-dot" />}</button>)}</div>
           </StationMap>
+          {route && <button type="button" className={"journey-status-strip timing-" + timing.status} onClick={showJourney}><Clock3 size={15}/><span>{activeTrain ? timing.message : "Plan useful stops"}</span><strong>{stops.length} stop{stops.length === 1 ? "" : "s"}</strong><ChevronUp size={15}/></button>}
           <SimulationControls controller={sim} route={route} station={station} options={{preference, blockedEdgeIds: blockedIds}} bridgeClosed={bridgeClosed} liftsClosed={liftsClosed} crossingOutage={crossingOutage} onCrossing={changeCrossing} onBridge={closed => changeAvailability("bridge", closed)} onLifts={closed => changeAvailability("lifts", closed)} />
-          {available && <div className="next-direction" key={route.edges.map(e => e.id).join("|")}><span className="next-arrow"><Navigation size={24}/></span><div><small>{sim.session?.status === "arrived" ? "ARRIVED" : "YOUR NEXT DIRECTION"} · {floorLabel(sim.session?.position.floor ?? route.instructions[0]!.floor)}</small><strong>{guidance?.current?.text ?? route.instructions[0]?.text}</strong><p>{Math.round(guidance?.remainingDistance ?? route.distanceMeters)} m · {minutes(guidance?.remainingSeconds ?? route.durationSeconds)} min · {routeEnd}</p>{guidance && <p className="upcoming-direction">{Math.round(guidance.decisionDistance)} m to next decision · Then: {guidance.upcoming?.text ?? "Arrival"}</p>}</div></div>}
-          {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes(route.durationSeconds)} min</strong> to {routeEnd}</span><button type="button" onClick={showDirections}>Directions<ChevronUp size={14} /></button></div>}
-          {selectedFacility && <div className="facility-detail" role="region" aria-label="Selected facility"><button type="button" className="detail-close icon-button" aria-label="Close facility details" onClick={() => setSelectedFacility(undefined)}><X size={17} /></button><span className="facility-icon"><FacilityIcon category={selectedFacility.category} size={22} /></span><div><small>{facilityLabels[selectedFacility.category]} · {floorLabel(selectedFacility.floor)}</small><h3>{selectedFacility.name}</h3><p><Accessibility size={14} />Accessible via step-free connections</p><button type="button" className="text-button" onClick={() => { setActiveTrainId(""); setPlatformNotice(""); setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId }); }}>Route here<ArrowRight size={15} /></button></div></div>}
+          {available && <div className="next-direction" key={route.edges.map(e => e.id).join("|")}><span className="next-arrow"><Navigation size={24}/></span><div><small>{sim.session?.status === "arrived" ? "ARRIVED" : "YOUR NEXT DIRECTION"} · {floorLabel(sim.session?.position.floor ?? route.instructions[0]!.floor)}</small><strong>{guidance?.current?.text ?? route.instructions[0]?.text}</strong><p>{Math.round(guidance?.remainingDistance ?? route.distanceMeters)} m · {minutes(guidance?.remainingSeconds ?? (route.durationSeconds + (route.dwellSeconds ?? 0)))} min · {routeEnd}</p>{guidance && <p className="upcoming-direction">{Math.round(guidance.decisionDistance)} m to next decision · Then: {guidance.upcoming?.text ?? "Arrival"}</p>}</div></div>}
+          {available && <div className="map-route-chip"><Navigation size={15} /><span><strong>{minutes((route.durationSeconds + (route.dwellSeconds ?? 0)))} min</strong> to {routeEnd}</span><button type="button" onClick={showDirections}>Directions<ChevronUp size={14} /></button></div>}
+          {selectedFacility && <FacilityDetails facility={selectedFacility} match={selectedMatch} now={sim.nowSeconds} availability={facilityAvailability} trainActive={!!activeTrain} pending={stops.some(s => s.id === selectedFacility.id) || sim.session?.currentStop?.id === selectedFacility.id} onClose={() => {setSelectedFacility(undefined); setSelectedMatch(undefined);}} onAdd={accessible => addStop(selectedFacility, accessible)} onMain={() => { setActiveTrainId(""); setPlatformNotice(""); setStops([]); setDestination(selectedFacility.nodeId); void calculate({ destination: selectedFacility.nodeId, stops: [] }); }}/>}
           <div className="station-disclaimer">Demonstration station · No live railway or passenger data</div>
         </section>
       </div>
