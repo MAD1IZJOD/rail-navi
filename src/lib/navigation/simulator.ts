@@ -96,8 +96,8 @@ export function replanSession(s:NavigationSession,graph:NavigationGraph,request:
 export function deviationChoices(s:NavigationSession,graph:NavigationGraph):string[]{
  const node=s.position.nodeId;if(!node||!graph.nodes.some(n=>n.id===node)||s.edgeSeconds>0)return[];
  const expected=s.route.nodes[s.edgeIndex+1]?.id,blocked=new Set(s.options.blockedEdgeIds??[]);
- return graph.edges.filter(e=>e.available&&!blocked.has(e.id)&&eligible(e.kind,e.accessible,s.options)&&
-  (e.from===node||(e.bidirectional&&e.to===node))).map(e=>e.from===node?e.to:e.from).filter(id=>id!==expected);
+ return [...new Set(graph.edges.filter(e=>e.available&&!blocked.has(e.id)&&eligible(e.kind,e.accessible,s.options)&&
+  (e.from===node||(e.bidirectional&&e.to===node))).map(e=>e.from===node?e.to:e.from).filter(id=>id!==expected))];
 }
 export function deviateSession(s:NavigationSession,graph:NavigationGraph,targetId:string):NavigationSession{
  if(!deviationChoices(s,graph).includes(targetId))return{...s,message:"Choose a valid alternate connection at the current decision point."};
