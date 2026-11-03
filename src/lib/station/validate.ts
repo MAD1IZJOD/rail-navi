@@ -19,7 +19,11 @@ export function validateStation(station:Station,platformIds:readonly string[]=[]
  const ids=new Set<string>();
  for(const region of geometry.regions){if(ids.has(region.id))errors.push("Duplicate region "+region.id);ids.add(region.id);}
  for(const edge of station.edges){
-  const a=nodeMap.get(edge.from),b=nodeMap.get(edge.to);if(!a||!b||edge.kind!=="walk")continue;
+  const a=nodeMap.get(edge.from),b=nodeMap.get(edge.to);if(!a||!b)continue;
+  if(edge.kind!=="walk"){
+   if(a.x!==b.x||a.y!==b.y)errors.push("Misaligned vertical connector "+edge.id);
+   continue;
+  }
   const regions=geometry.regions.filter(r=>r.floor===a.floor);
   for(const r of regions.filter(r=>r.kind==="track"||r.kind==="restricted")){
    const interval=segmentInterval(a,b,r);if(interval&&interval[1]-interval[0]>1e-8)errors.push("Restricted crossing "+edge.id);
@@ -37,6 +41,7 @@ export function validateStation(station:Station,platformIds:readonly string[]=[]
  const facilityIds=new Set<string>();
  for(const f of station.facilities){
   if(facilityIds.has(f.id))errors.push("Duplicate facility "+f.id);facilityIds.add(f.id);
+  if(!station.entrances.some(g=>findRoute(station,g.nodeId,f.nodeId,{preference:f.accessible?"wheelchair":"fastest"}).status==="available"))errors.push("Unreachable facility "+f.id);
   const n=nodeMap.get(f.nodeId);if(!n||n.floor!==f.floor||n.x!==f.x||n.y!==f.y||!station.edges.some(e=>e.from===n.id||e.to===n.id))errors.push("Invalid facility anchor "+f.id);
  }
  for(const l of geometry.landmarks)if(!nodeMap.has(l.nodeId))errors.push("Missing landmark anchor "+l.id);
