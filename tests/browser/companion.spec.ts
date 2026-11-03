@@ -49,7 +49,7 @@ test("ticket journey discovers real stops, optimizes, visits and reroutes to a c
  await page.getByText("Demo controls",{exact:true}).click();await page.getByLabel("Close Bridge A",{exact:true}).check();await page.getByText("Demo controls",{exact:true}).click();
  await page.getByText("Simulate platform change",{exact:true}).click();await page.getByLabel("Demo assignment").selectOption("platform-11");await page.getByText("Simulate platform change",{exact:true}).click();
  await expect(page.getByTestId("active-platform")).toHaveText("11");await expect(marker).toHaveAttribute("data-x",point.x!);await expect(marker).toHaveAttribute("data-y",point.y!);
- await expect(page.locator(".directions-list")).toContainText("Platform 11");await expect(page.locator(".directions-list")).not.toContainText("Platform 17 boarding");
+ await expect(page.locator(".directions-list")).toContainText("Platform 11");await expect(page.locator(".directions-list li").last()).toContainText("You have reached Platform 11 boarding area");
  await page.getByRole("button",{name:"Continue after visit",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveText("at-stop",{timeout:20000});
  await page.getByRole("button",{name:"Continue after visit",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveText("arrived",{timeout:25000});
  await expect(page.locator(".simulation-feedback")).toContainText("Platform 11 boarding area");await expect(page.locator(".itinerary-list li")).toHaveCount(1);
@@ -57,7 +57,7 @@ test("ticket journey discovers real stops, optimizes, visits and reroutes to a c
 });
 test("stop ordering, availability, timing warnings and assistance work without losing the platform",async({page})=>{
  await planned(page);const water=await add(page,"water on my way"),pharmacy=await add(page,"pharmacy");
- await journey(page);let order=await page.locator(".itinerary-list li:not(.final-destination) strong").allTextContents();
+ await journey(page);const order=await page.locator(".itinerary-list li:not(.final-destination) strong").allTextContents();
  await page.getByRole("button",{name:"Move "+order[1]+" earlier",exact:true}).click();await journey(page);
  expect(await page.locator(".itinerary-list li:not(.final-destination) strong").allTextContents()).toEqual([order[1],order[0]]);
  await page.getByLabel("Visit minutes for "+pharmacy.name).fill("30");await journey(page);
@@ -72,7 +72,7 @@ test("stop ordering, availability, timing warnings and assistance work without l
  await page.locator(".discovery-result").first().click();await expect(page.getByRole("region",{name:"Selected facility"})).toContainText("Show accessible route");
  await page.getByRole("button",{name:"Show accessible route · add assistance stop",exact:true}).click();
  await expect(page.locator(".directions-list")).not.toContainText("stairs");await expect(page.getByTestId("active-platform")).toHaveText("17");
- expect(water).toBeTruthy();order=[];
+ expect(water).toBeTruthy();
 });
 test("facility discovery, detail sheets and timing layouts fit all six viewport widths",async({page},info)=>{
  test.setTimeout(90000);await page.emulateMedia({reducedMotion:"reduce"});
