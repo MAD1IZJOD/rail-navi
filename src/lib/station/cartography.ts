@@ -1,6 +1,6 @@
 import type {Point,Rect} from "../navigation/types";
 export interface MapLabel extends Point{id:string;text:string;priority:number;kind:"platform"|"region"|"landmark"|"facility"|"gate"}
-export interface Camera extends Rect{}
+export type Camera = Rect;
 export const mapPalette={canvas:"#F5F7FB",structure:"#E7EDF4",platform:"#FFFFFF",track:"#D5DDE7",path:"#DBE8F7",route:"#2563EB",passenger:"#10213B",arrival:"#19BFA9"};
 export function constrainCamera(camera:Camera,width:number,height:number):Camera{
  const w=Math.max(width/5,Math.min(width,camera.width)),h=w*height/width,pad=30;
