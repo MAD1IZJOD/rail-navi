@@ -44,7 +44,7 @@ export function StationNavigator({ initialTicket = false }: { initialTicket?: bo
   const [plannedRoute, setRoute] = useState<GeneratedRoute | null>(null);
   const route = sim.session?.route ?? plannedRoute;
   const guidance = sim.session ? sessionGuidance(sim.session) : null;
-  const blockedIds = [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === crossingOutage).map(e => e.id)];
+  const blockedIds = useMemo(() => [...(bridgeClosed ? bridgeAEdgeIds : []), ...(liftsClosed ? liftEdgeIds : []), ...station.edges.filter(e => e.kind === "walk" && e.label === crossingOutage).map(e => e.id)], [bridgeClosed, liftsClosed, crossingOutage]);
   const [computing, setComputing] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"directions" | "facilities">("directions");
