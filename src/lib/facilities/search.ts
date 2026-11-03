@@ -11,10 +11,13 @@ export function interpretQuery(query:string,category:FacilityCategory|"all"="all
  const q=normalizeSearch(query),accessible=/accessible|wheelchair|step free/.test(q);
  const matches=(Object.keys(serviceSynonyms) as FacilityCategory[]).filter(c=>serviceSynonyms[c].some(word=>new RegExp("\\b"+word.replace("-","[- ]")+"\\b").test(q)));
  const action=/book me|order online|checkout|pay for|deliver to|track my/.test(q);
- const chosen=action?undefined:category!=="all"?category:matches.find(c=>c==="lost-found"||c==="first-aid")??matches.find(c=>c!=="accessible")??matches[0];
+ const specificHelp=matches.some(c=>c==="lost-found"||c==="first-aid");
+ const distinct=matches.filter(c=>c!=="accessible"&&c!=="security"&&!(specificHelp&&c==="information"));
+ const ambiguous=category==="all"&&distinct.length>1;
+ const chosen=action||ambiguous?undefined:category!=="all"?category:matches.find(c=>c==="lost-found"||c==="first-aid")??matches.find(c=>c!=="accessible")??matches[0];
  const platform=q.match(/platform\s*(\d+)/),gate=q.match(/gate\s*(\d+)/),floor=q.match(/level\s*([+\-]?\d+)/);
  const supported=!!chosen;
- return{supported,category:chosen,accessible,onWay:/on (my|the) (way|route)|before my train/.test(q),nearest:/nearest|closest/.test(q),platform:platform?Number(platform[1]):undefined,gate:gate?Number(gate[1]):undefined,floor:floor?Number(floor[1]):undefined,message:supported?"Matches use modeled walking routes.":"Try a supported category such as water, coffee, pharmacy, washroom, charging or help desk."};
+ return{supported,category:chosen,accessible,onWay:/on (my|the) (way|route)|before my train/.test(q),nearest:/nearest|closest/.test(q),platform:platform?Number(platform[1]):undefined,gate:gate?Number(gate[1]):undefined,floor:floor?Number(floor[1]):undefined,message:supported?"Matches use modeled walking routes.":ambiguous?"Choose one category at a time, then add each useful stop to your journey.":"Try a supported category such as water, coffee, pharmacy, washroom, charging or help desk."};
 }
 export interface FacilityMatch {facility:Facility;reachable:boolean;open:boolean;walkingMeters:number;walkingSeconds:number;detourMeters:number;detourSeconds:number;floorChanges:number;badges:string[];route:GeneratedRoute;insertion:JourneyStop[];preference:RoutingOptions["preference"];timing:JourneyTiming}
 export function toJourneyStop(f:Facility,now:number,overrides:Readonly<Record<string,boolean>>={},dwellSeconds=f.details?.visitSeconds??120):JourneyStop{
@@ -59,5 +62,5 @@ export function discoverFacilities(ctx:SearchContext):{intent:FacilityIntent;res
  results.sort((a,b)=>Number(b.reachable&&b.open)-Number(a.reachable&&a.open)||Number(a.timing.status==="not-recommended")-Number(b.timing.status==="not-recommended")||
   (qualifier?(a as FacilityMatch&{qualifierDistance:number}).qualifierDistance-(b as FacilityMatch&{qualifierDistance:number}).qualifierDistance:0)||
   (intent.onWay?a.detourSeconds-b.detourSeconds:a.walkingMeters-b.walkingMeters)||a.floorChanges-b.floorChanges||a.facility.id.localeCompare(b.facility.id));
- return{intent,results,message:results.length?"Ranked by actual station walking connections.":"No matching facilities. Try another category or location."};
+ return{intent,results,message:stops.length>=4?"Four optional stops selected. Remove a stop before adding another.":results.length?"Ranked by actual station walking connections.":"No matching facilities. Try another category or location."};
 }
