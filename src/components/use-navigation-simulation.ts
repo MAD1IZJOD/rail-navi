@@ -3,7 +3,7 @@ import {useEffect,useState} from "react";
 import type {FloorId,GeneratedRoute,NavigationGraph,RoutingOptions,JourneyStop} from "@/lib/navigation/types";
 import {advanceSession,continueVisit,deviateSession,pauseSession,replanSession,restartSession,resumeSession,setSimulationSpeed,startSession,stepSession,type NavigationSession} from "@/lib/navigation/simulator";
 
-export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:FloorId)=>void,onVisit?:(id:string)=>void,onRestart?:(stops:JourneyStop[])=>void){
+export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:FloorId)=>void,onVisit?:(id:string)=>void,onRestart?:(stops:JourneyStop[])=>void,onStop?:()=>void){
  const [session,setSession]=useState<NavigationSession|null>(null);
  const [clockBase,setClockBase]=useState(19*3600+55*60);
  const nowSeconds=clockBase+(session?.elapsedSeconds??0);
@@ -20,7 +20,7 @@ export function useNavigationSimulation(graph:NavigationGraph,onFloor:(floor:Flo
   setClock:(seconds:number)=>{if(Number.isFinite(seconds)&&seconds>=0)setClockBase(seconds-(session?.elapsedSeconds??0));},
   continueVisit:()=>setSession(s=>s?continueVisit(s):null),
   start:(route:GeneratedRoute,options:RoutingOptions)=>setSession({...startSession(route),options}),
-  stop:()=>{setClockBase(b=>b+(session?.elapsedSeconds??0));setSession(null);},
+  stop:()=>{setClockBase(b=>b+(session?.elapsedSeconds??0));setSession(null);onStop?.();},
   pause:()=>setSession(s=>s?pauseSession(s):null),
   resume:()=>setSession(s=>s?resumeSession(s):null),
   restart:()=>{setClockBase(b=>b+(session?.elapsedSeconds??0));const next=session?restartSession(session,graph):null;setSession(next);onRestart?.(next?.itinerary??[]);},
