@@ -1,4 +1,5 @@
 import {test,expect,type Page} from "@playwright/test";
+test.beforeEach(async({page})=>{await page.addInitScript(()=>{localStorage.removeItem("railnavi-journey-v1");localStorage.setItem("railnavi-language-v1","en");});});
 import {demoStation as station} from "../../src/lib/station/demo-station";
 import {findRoute} from "../../src/lib/navigation/engine";
 async function booking(page:Page){await page.goto("/");await page.getByRole("link",{name:"Find My Platform",exact:true}).click();await page.getByRole("button",{name:/Try a sample/}).click();await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByTestId("ticket-platform")).toHaveText("10");}
