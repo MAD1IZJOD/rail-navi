@@ -497,8 +497,8 @@ export function renderInstruction(step:RouteStep|undefined,language:Language):st
  if(!a)return"अगला रास्ता नक्शे पर देखें।";
  if(a.type==="arrive")return `आप ${placeName(a.target,language)} पर पहुँच गए हैं।${a.visit?" तैयार होने पर आगे बढ़ें।":""}`;
  if(a.type==="transition"){
-  const mode={walk:"पैदल मार्ग",lift:"लिफ़्ट",stairs:"सीढ़ियाँ",escalator:"एस्केलेटर"}[a.connection];
-  return `${placeName(a.via,language)} से ${mode} लेकर ${localFloor(a.toFloor,language)} पर ${a.ascending?"ऊपर":"नीचे"} जाएँ।`;
+  const mode={walk:"पैदल",lift:"लिफ़्ट से",stairs:"सीढ़ियों से",escalator:"एस्केलेटर से"}[a.connection];
+  return `${placeName(a.via,language)} पर ${mode} ${localFloor(a.toFloor,language)} तक ${a.ascending?"ऊपर":"नीचे"} जाएँ।`;
  }
  const dir={north:"उत्तर",south:"दक्षिण",east:"पूर्व",west:"पश्चिम"}[a.direction];
  return `${placeName(a.via,language)} पर ${dir} की ओर चलते हुए ${placeName(a.target,language)} तक जाएँ।`;
