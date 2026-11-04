@@ -2,9 +2,11 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import {Camera,MapPin,QrCode,X} from "lucide-react";
 import {checkpoints,resolveCheckpoint,type Checkpoint} from "@/lib/positioning/checkpoints";
+import {useDialog} from "./use-dialog";
 import {useLanguage} from "./language-provider";
 export function CheckpointScanner({onClose,onConfirm,initial}:{onClose:()=>void;onConfirm:(checkpoint:Checkpoint,source:"qr"|"manual")=>void;initial?:Checkpoint}){
  const {t,name,floor}=useLanguage();
+ const dialog=useDialog();
  const [input,setInput]=useState(""),[selected,setSelected]=useState(""),[candidate,setCandidate]=useState<Checkpoint|undefined>(initial),[source,setSource]=useState<"qr"|"manual">("qr"),[error,setError]=useState(""),[scanning,setScanning]=useState(false);
  const video=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null),controls=useRef<{stop:()=>void}|null>(null),generation=useRef(0),seen=useRef("");
  const stop=useCallback(()=>{generation.current++;controls.current?.stop();controls.current=null;stream.current?.getTracks().forEach(track=>track.stop());stream.current=null;if(video.current)video.current.srcObject=null;},[]);
@@ -15,7 +17,7 @@ export function CheckpointScanner({onClose,onConfirm,initial}:{onClose:()=>void;
   stop();setScanning(false);setError("");setCandidate(result.checkpoint);setSource(method);return true;
  },[stop]);
  async function camera(){
-  stop();const token=generation.current;setCandidate(undefined);setError("");setScanning(true);
+  stop();seen.current="";const token=generation.current;setCandidate(undefined);setError("");setScanning(true);
   try{
    if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw new Error("Camera unsupported");
    const media=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"}}});
@@ -36,7 +38,7 @@ export function CheckpointScanner({onClose,onConfirm,initial}:{onClose:()=>void;
   try{const {BrowserQRCodeReader}=await import("@zxing/browser");const result=await new BrowserQRCodeReader().decodeFromImageUrl(url);if(token===generation.current)accept(result.getText(),"qr");}
   catch{if(token===generation.current)setError("malformed");}finally{URL.revokeObjectURL(url);}
  }
- return <div className="scanner-backdrop"><section className="checkpoint-sheet" role="dialog" aria-modal="true" aria-labelledby="scanner-title" onKeyDown={e=>{if(e.key==="Escape")onClose();}}>
+ return <div className="scanner-backdrop"><section ref={dialog} tabIndex={-1} className="checkpoint-sheet" role="dialog" aria-modal="true" aria-labelledby="scanner-title" onKeyDown={e=>{if(e.key==="Escape")onClose();}}>
   <button autoFocus type="button" className="utility-close" aria-label={t("Close scanner")} onClick={onClose}><X size={22}/></button>
   <div className="eyebrow">RAILNAVI · QR</div><h2 id="scanner-title">{t(candidate?"Confirm location":"Scan checkpoint")}</h2>
   <p>{t("QR checkpoints identify known fixed locations; they do not provide continuous live indoor tracking.")}</p>
