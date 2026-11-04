@@ -82,7 +82,7 @@ export interface LocationAnchor {
   id: string;
   nodeId: string;
   label: string;
-  source: "manual" | "qr" | "ble";
+  source: "manual" | "qr" | "ble" | "simulation";
 }
 export interface Station extends NavigationGraph {
   geometry?: StationGeometry;
@@ -122,7 +122,12 @@ export interface RoutingOptions {
   preference: RoutePreference;
   blockedEdgeIds?: readonly string[];
 }
+export type InstructionAction =
+  | { type: "walk"; direction: "north" | "south" | "east" | "west"; via: string; target: string }
+  | { type: "transition"; connection: ConnectionType; via: string; toFloor: FloorId; ascending: boolean }
+  | { type: "arrive"; target: string; floor: FloorId; visit?: boolean };
 export interface RouteStep {
+  action?: InstructionAction;
   kind: "walk" | "transition" | "arrive";
   text: string;
   floor: FloorId;
