@@ -3,7 +3,7 @@ import {createContext,useCallback,useContext,useEffect,useMemo,useState,type Rea
 import {translate,placeName,localFloor,renderInstruction,distance,duration,type Language} from "@/lib/i18n/messages";
 import type {FloorId,RouteStep} from "@/lib/navigation/types";
 export const LANGUAGE_KEY="railnavi-language-v1";
-const defaultValue={language:"en" as Language,setLanguage:(_language:Language)=>{},t:(s:string)=>s,name:(s:string)=>s,floor:(f:FloorId)=>localFloor(f,"en"),instruction:(s:RouteStep|undefined)=>renderInstruction(s,"en"),distance:(n:number)=>distance(n,"en"),duration:(n:number)=>duration(n,"en")};
+const defaultValue={language:"en" as Language,setLanguage:(value:Language)=>{void value;},t:(s:string)=>s,name:(s:string)=>s,floor:(f:FloorId)=>localFloor(f,"en"),instruction:(s:RouteStep|undefined)=>renderInstruction(s,"en"),distance:(n:number)=>distance(n,"en"),duration:(n:number)=>duration(n,"en")};
 const Context=createContext(defaultValue);
 export function LanguageProvider({children}:{children:ReactNode}){
  const [language,setCurrent]=useState<Language>("en");
@@ -21,3 +21,4 @@ export function LanguageControl(){
  const {language,setLanguage,t}=useLanguage();
  return <label className="language-control"><span className="sr-only">{t("Language")}</span><select aria-label={t("Language")} value={language} onChange={e=>setLanguage(e.target.value as Language)}><option value="en" lang="en">English</option><option value="hi" lang="hi">हिन्दी</option></select></label>;
 }
+
