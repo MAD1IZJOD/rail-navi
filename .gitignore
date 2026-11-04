@@ -11,3 +11,6 @@ next-env.d.ts
 .DS_Store
 *.log
 .vercel/
+
+# Rebuilt from the production app; never commit a stale offline resource index.
+/public/offline-manifest.json
