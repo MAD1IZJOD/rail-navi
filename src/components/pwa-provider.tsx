@@ -2,6 +2,7 @@
 import {createContext,useCallback,useContext,useEffect,useRef,useState,type ReactNode} from "react";
 import {Download,Menu,Wifi,WifiOff,X,Smartphone,RefreshCw} from "lucide-react";
 import {useLanguage,LanguageControl,LANGUAGE_KEY} from "./language-provider";
+import {useDialog} from "./use-dialog";
 import {JOURNEY_KEY} from "@/lib/journey/recovery";
 interface DownloadState{ready:boolean;version?:string;stationVersion?:string;savedAt?:number}
 interface InstallEvent extends Event{prompt:()=>Promise<void>;userChoice:Promise<{outcome:"accepted"|"dismissed"}>}
@@ -17,6 +18,7 @@ export function PwaProvider({children}:{children:ReactNode}){
  const [open,setOpen]=useState(false),[offline,setOffline]=useState(false),[supported,setSupported]=useState(false),[checking,setChecking]=useState(true),[saving,setSaving]=useState(false);
  const [download,setDownload]=useState<DownloadState>({ready:false}),[progress,setProgress]=useState(0),[error,setError]=useState(""),[update,setUpdate]=useState(false),[appUpdate,setAppUpdate]=useState(false);
  const [installed,setInstalled]=useState(false),[canInstall,setCanInstall]=useState(false),[ios,setIos]=useState(false),[notice,setNotice]=useState("");
+ const dialog=useDialog(open);
  const registration=useRef<ServiceWorkerRegistration|null>(null),installEvent=useRef<InstallEvent|null>(null);
  const refresh=useCallback(async()=>{
   const active=registration.current?.active;if(!active)return;
@@ -58,10 +60,10 @@ export function PwaProvider({children}:{children:ReactNode}){
   catch{setError("Offline download failed. Try again with a connection and available storage.");}
  }
  return <PwaContext.Provider value={{offline,download}}>
-  {children}
   <div className="app-utility"><LanguageControl/><button type="button" aria-label={t("Station & app")} onClick={()=>setOpen(true)}><Menu size={19}/><span>{t("Station & app")}</span>{download.ready&&<i aria-label={t("Available offline")}/>}</button></div>
+  {children}
   {offline&&<div className="offline-ribbon" role="status"><WifiOff size={14}/>{t("Offline")} · {t("Fictional local assignments · Offline information is not live railway information.")}</div>}
-  {open&&<div className="utility-backdrop" onClick={()=>setOpen(false)}><section role="dialog" aria-modal="true" aria-labelledby="station-app-title" className="utility-sheet" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.key==="Escape")setOpen(false);}}>
+  {open&&<div className="utility-backdrop" onClick={()=>setOpen(false)}><section ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="station-app-title" className="utility-sheet" onClick={e=>e.stopPropagation()} onKeyDown={e=>{if(e.key==="Escape")setOpen(false);}}>
    <button autoFocus type="button" className="utility-close" aria-label={t("Close")} onClick={()=>setOpen(false)}><X size={21}/></button>
    <div className="eyebrow">RAILNAVI</div><h2 id="station-app-title">{t("Station & app")}</h2>
    <p className="network-status">{offline?<WifiOff size={17}/>:<Wifi size={17}/>} {t(offline?"Offline":"Online")}</p>
@@ -79,7 +81,7 @@ export function PwaProvider({children}:{children:ReactNode}){
     {canInstall&&!installed&&<button type="button" className="button" onClick={()=>void install()}>{t("Install RailNavi")}</button>}
     {!installed&&<p>{t(ios?"iPhone / iPad: open in Safari, tap Share, then Add to Home Screen.":"Android / desktop: use your browser menu and choose Install app or Add to Home screen when available.")}</p>}
    </section>
-   {appUpdate&&<button type="button" disabled={saving} className="text-button" onClick={()=>{registration.current?.waiting?.postMessage({type:"ACTIVATE"});window.addEventListener("beforeunload",()=>{}, {once:true});window.location.reload();}}><RefreshCw size={16}/>{t("Reload to update app")}</button>}
+   {appUpdate&&<button type="button" disabled={saving} className="text-button" onClick={()=>{const waiting=registration.current?.waiting;if(!waiting)return;navigator.serviceWorker.addEventListener("controllerchange",()=>window.location.reload(),{once:true});waiting.postMessage({type:"ACTIVATE"});}}><RefreshCw size={16}/>{t("Reload to update app")}</button>}
    <a href="/checkpoints" className="text-button">{t("Print demo checkpoints")}</a>
    <button type="button" className="clear-data" disabled={saving} onClick={()=>void clear()}>{t("Clear saved RailNavi data")}</button>
    {notice&&<p role="status">{t(notice)}</p>}{error&&<p role="alert">{t(error)}</p>}
