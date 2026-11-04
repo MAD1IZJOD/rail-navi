@@ -42,9 +42,9 @@ test("invalid codes and external deep links cannot move the passenger",async({pa
  await page.getByRole("button",{name:"Close scanner",exact:true}).click();await expect(page.locator(".confirmed-location")).toContainText("Gate 1");
 });
 test("recovers the confirmed checkpoint, preference and stops without resuming movement",async({page})=>{
- await route(page);await scanner(page,gate.id);await page.getByRole("radio",{name:/Wheelchair/}).check();await page.getByRole("button",{name:"Find my route",exact:true}).click();await fold(page);
+ await route(page);await scanner(page,gate.id);const toggle=page.locator(".mobile-panel-toggle");if(await toggle.isVisible()&&await toggle.getAttribute("aria-expanded")==="false")await toggle.click();await page.getByRole("radio",{name:/Wheelchair/}).check();await page.getByRole("button",{name:"Find my route",exact:true}).click();await fold(page);
  await page.getByRole("button",{name:"Start simulated navigation",exact:true}).click();await page.waitForTimeout(700);await page.reload();
- await page.getByRole("button",{name:"Resume Journey",exact:true}).click();await expect(page.getByTestId("route-summary")).toContainText("Gate 2");await expect(page.getByRole("radio",{name:/Wheelchair/})).toBeChecked();await expect(page.getByTestId("simulation-status")).toHaveCount(0);
+ await page.getByRole("button",{name:"Resume Journey",exact:true}).click();await expect(page.getByTestId("route-summary")).toContainText("Gate 2");await expect(page.locator('input[value="wheelchair"]')).toBeChecked();await expect(page.getByTestId("simulation-status")).toHaveCount(0);
 });
 test("corrupted saved data offers a safe fresh start",async({page})=>{
  await page.addInitScript(()=>localStorage.setItem("railnavi-journey-v1","{broken"));await page.goto("/demo");await expect(page.getByRole("dialog")).toContainText("could not be restored");await page.getByRole("button",{name:"Start Fresh",exact:true}).click();await expect(page.getByRole("dialog")).toHaveCount(0);await expect(page.locator(".confirmed-location")).toContainText("Gate 1");
