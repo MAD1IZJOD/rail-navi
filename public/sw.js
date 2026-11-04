@@ -2,8 +2,10 @@
 const PREFIX="railnavi-v1-",META=PREFIX+"metadata",READY=new URL("/__railnavi_ready__",self.location.origin).href;
 const buckets=new Set(["shell","static","geometry","topology","facilities","checkpoints","locales","tickets"]);
 let saving=false;
+const required={"/":"shell","/demo":"shell","/ticket":"shell","/checkpoints":"shell","/manifest.webmanifest":"shell","/icon-192.png":"static","/icon-512.png":"static","/icon-180.png":"static",...Object.fromEntries(["geometry","topology","facilities","checkpoints","locales","tickets","version"].map(key=>["/station-data/"+key,key==="version"?"topology":key]))};
 function validManifest(m){
  return m&&m.schema===1&&/^build-[a-f0-9]{20}$/.test(m.version)&&/^station-5-[a-f0-9]{8}$/.test(m.stationVersion)&&Array.isArray(m.resources)&&m.resources.length>10&&m.resources.length<2000&&
+ Object.entries(required).every(([url,bucket])=>m.resources.some(r=>r.url===url&&r.bucket===bucket))&&m.resources.some(r=>r.url.startsWith("/_next/static/")&&r.url.endsWith(".js")&&r.bucket==="static")&&m.resources.some(r=>r.url.endsWith(".css")&&r.bucket==="static")&&
  new Set(m.resources.map(r=>r.url)).size===m.resources.length&&m.resources.reduce((n,r)=>n+r.bytes,0)<100*1024*1024&&
  m.resources.every(r=>buckets.has(r.bucket)&&typeof r.url==="string"&&r.url.startsWith("/")&&!r.url.startsWith("//")&&!/[?#\\]/.test(r.url)&&
  (["/","/demo","/ticket","/checkpoints","/manifest.webmanifest","/icon-192.png","/icon-512.png","/icon-180.png"].includes(r.url)||/^\/_next\/static\/[a-zA-Z0-9_./%-]+$/.test(r.url)||/^\/station-data\/(geometry|topology|facilities|checkpoints|locales|tickets|version)$/.test(r.url))&&
