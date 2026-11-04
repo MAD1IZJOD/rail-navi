@@ -464,7 +464,7 @@ export const messages:Readonly<Record<string,string>>={
   "App update ready": "ऐप का नया संस्करण तैयार है"
 };
 export function translate(text:string,language:Language):string{
- if(language==="en")return text;
+ if(language==="en"){const errors:Record<string,string>={malformed:"This checkpoint code has an invalid format.",oversized:"This checkpoint code or image is too large.",external:"This external QR link belongs to another app.",station:"This QR code belongs to another station.",version:"This checkpoint version is not supported.",unknown:"This checkpoint is not in the demo station."};return errors[text]??text;}
  const key=text.trim(),exact=messages[key];if(exact)return text.replace(key,exact);
  // These are display-label templates, never generated navigation sentences.
  let m=key.match(/^Platform (\d+)(.*)$/);if(m)return `प्लेटफ़ॉर्म ${m[1]}${m[2]===" boarding area"?" का बोर्डिंग क्षेत्र":m[2]===" walkway"?" का पैदल रास्ता":m[2]}`;
