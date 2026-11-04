@@ -45,7 +45,7 @@ export function PwaProvider({children}:{children:ReactNode}){
  async function save(){
   const worker=registration.current?.active;if(!worker)return;
   setSaving(true);setError("");setProgress(0);
-  try{try{await navigator.storage?.persist?.();}catch{}const state=await rpc(worker,"SAVE",(done,total)=>setProgress(Math.round(done/total*100)));setDownload(state);setUpdate(false);setNotice("Download complete");}
+  try{try{void navigator.storage?.persist?.().catch(()=>{});}catch{}const state=await rpc(worker,"SAVE",(done,total)=>setProgress(Math.round(done/total*100)));setDownload(state);setUpdate(false);setNotice("Download complete");}
   catch{setError("Offline download failed. Try again with a connection and available storage.");await refresh();}
   finally{setSaving(false);}
  }
