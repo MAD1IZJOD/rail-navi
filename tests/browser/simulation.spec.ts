@@ -1,4 +1,5 @@
 import {test,expect,type Page} from "@playwright/test";
+test.beforeEach(async({page})=>{await page.addInitScript(()=>{localStorage.removeItem("railnavi-journey-v1");localStorage.setItem("railnavi-language-v1","en");});});
 async function planned(page:Page){
  await page.goto("/ticket");await page.getByRole("button",{name:/Platform 17 simulator demo/}).click();
  await page.getByRole("button",{name:"Find ticket",exact:true}).click();await expect(page.getByTestId("ticket-platform")).toHaveText("17");
