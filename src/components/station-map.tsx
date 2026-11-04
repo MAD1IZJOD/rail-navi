@@ -5,6 +5,7 @@ import {Expand,Layers3,LocateFixed,Minus,Plus,Route as RouteIcon} from "lucide-r
 import type {Facility,FacilityCategory,FloorId,GeneratedRoute,Point,Station} from "@/lib/navigation/types";
 import type {SimPosition} from "@/lib/navigation/simulator";
 import {constrainCamera,fitPoints,mapPalette,placeLabels,type Camera,type MapLabel} from "@/lib/station/cartography";
+import {useLanguage} from "./language-provider";
 import {FacilityIcon} from "./facility-icon";
 interface Props {
  children?:ReactNode;station:Station;floor:FloorId;route?:GeneratedRoute|null;preview?:boolean;
@@ -15,6 +16,7 @@ interface Props {
 const defaults={architecture:true,tracks:true,platforms:true,passages:true,connectors:true,facilities:true,labels:true,route:true,passenger:true,endpoints:true};
 const layerNames:Record<keyof typeof defaults,string>={architecture:"Station architecture",tracks:"Tracks (restricted)",platforms:"Platforms",passages:"Bridges & passages",connectors:"Stairs, escalators & lifts",facilities:"Facility markers",labels:"Map labels",route:"Active route",passenger:"Passenger marker",endpoints:"Start & destination"};
 export function StationMap({children,station,floor,route,matchingFacilityIds,previewRoute,preview=false,showFacilities=false,facilityCategory="all",selectedFacilityId,onFacilitySelect,passenger,passengerStatus,destinationId,landmarkNodeId,unavailableEdgeIds,onPassengerFloor}:Props){
+ const {t,name,language}=useLanguage();
  const [view,setView]=useState<Camera>({x:0,y:0,width:station.width,height:station.height});
  const [viewport,setViewport]=useState<Point>({x:1000,y:650});
  const [layers,setLayers]=useState(defaults),[follow,setFollow]=useState(true);
@@ -133,11 +135,11 @@ export function StationMap({children,station,floor,route,matchingFacilityIds,pre
  },[station,nodes,floor,zoom]);
  const candidates:MapLabel[]=useMemo(()=>[
   ...station.platforms.map(p=>({id:p.id,text:String(p.number),x:p.bounds.x+p.bounds.width/2,y:Math.max(p.bounds.y+45,Math.min(p.bounds.y+p.bounds.height-25,view.y+68/scale)),priority:destination?.platformId===p.id?990:600,kind:"platform" as const})),
-  ...station.entrances.flatMap(e=>{const n=nodes.get(e.nodeId)!;return floor===0?[{id:e.id,text:e.name,x:n.x,y:n.y-30,priority:850,kind:"gate" as const}]:[];}),
-  ...station.corridors.filter(r=>r.floor===floor&&r.width>200).map((r,i)=>({id:"region-"+i,text:r.name,x:r.x+r.width/2,y:r.y-35,priority:800,kind:"region" as const})),
-  ...(zoom>2.1?(geometry?.landmarks??[]).filter(l=>l.floor===floor).map(l=>({...l,text:l.name,kind:"landmark" as const})):[]),
-  ...(floor===0&&zoom<1.6?(geometry?.platformGroups??[]).map((g,i)=>({id:"zone-"+i,text:g.name,x:(station.platforms[g.first-1]!.bounds.x+station.platforms[g.last-1]!.bounds.x)/2,y:155,priority:900,kind:"region" as const})):[]),
- ],[station,nodes,floor,geometry,zoom,destination?.platformId,view.y,scale]);
+  ...station.entrances.flatMap(e=>{const n=nodes.get(e.nodeId)!;return floor===0?[{id:e.id,text:name(e.name),x:n.x,y:n.y-30,priority:850,kind:"gate" as const}]:[];}),
+  ...station.corridors.filter(r=>r.floor===floor&&r.width>200).map((r,i)=>({id:"region-"+i,text:name(r.name),x:r.x+r.width/2,y:r.y-35,priority:800,kind:"region" as const})),
+  ...(zoom>2.1?(geometry?.landmarks??[]).filter(l=>l.floor===floor).map(l=>({...l,text:name(l.name),kind:"landmark" as const})):[]),
+  ...(floor===0&&zoom<1.6?(geometry?.platformGroups??[]).map((g,i)=>({id:"zone-"+i,text:name(g.name),x:(station.platforms[g.first-1]!.bounds.x+station.platforms[g.last-1]!.bounds.x)/2,y:155,priority:900,kind:"region" as const})):[]),
+ ],[station,nodes,floor,geometry,zoom,destination?.platformId,view.y,scale,name]);
  const labels=useMemo(()=>placeLabels(candidates,view,viewport,12),[candidates,view,viewport]);
  const facilities=useMemo(()=>{
   const all=station.facilities.filter(f=>f.floor===floor&&(f.id===selectedFacilityId||
@@ -156,7 +158,7 @@ export function StationMap({children,station,floor,route,matchingFacilityIds,pre
  const transitions=route?.floorChanges.filter(c=>c.fromFloor===floor||c.toFloor===floor)??[];
  const font=12/scale;
  return <div className={`station-map ${preview?"map-preview":""}`}>
- <svg ref={svg} className="map-svg cartographic-map" viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`} role="group" aria-label={`Interactive station map, Level ${floor}, ${Math.round(zoom*100)} percent zoom`} tabIndex={preview?-1:0}
+ <svg ref={svg} className="map-svg cartographic-map" viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`} role="group" aria-label={language==="hi"?`स्टेशन का नक्शा, स्तर ${floor}, ${Math.round(zoom*100)} प्रतिशत ज़ूम`:`Interactive station map, Level ${floor}, ${Math.round(zoom*100)} percent zoom`} tabIndex={preview?-1:0}
  onPointerDown={down} onPointerMove={drag} onPointerUp={release} onPointerCancel={release} onLostPointerCapture={release}
  onKeyDown={e=>{if(e.target!==e.currentTarget||preview)return;if(["+","=","-"].includes(e.key)){e.preventDefault();zoomAt(e.key==="-"?1/1.25:1.25);}
  const d:Record<string,Point>={ArrowLeft:{x:-40,y:0},ArrowRight:{x:40,y:0},ArrowUp:{x:0,y:-40},ArrowDown:{x:0,y:40}};if(d[e.key]){e.preventDefault();setFollow(false);const p=d[e.key]!;setView(v=>constrainCamera({...v,x:v.x+p.x,y:v.y+p.y},station.width,station.height));}}}>
@@ -169,24 +171,24 @@ export function StationMap({children,station,floor,route,matchingFacilityIds,pre
  {layers.route&&previewRoute?.status==="available"&&<g data-layer="detour-preview" pointerEvents="none">{previewRoute.edges.map((e,i)=>{const a=previewRoute.nodes[i]!,b=previewRoute.nodes[i+1]!;return a.floor===floor&&b.floor===floor?<line key={i} data-testid="detour-segment" data-edge-id={e.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#079482" strokeWidth="9" strokeDasharray="6 7" opacity=".6" vectorEffect="non-scaling-stroke"/>:null;})}</g>}
  {layers.route&&<g data-layer="active-route">{segments.map(({edge,a,b,index})=><g key={edge.id+":"+index} data-testid="route-segment" data-edge-id={edge.id} pointerEvents="none"><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="white" strokeWidth="12" strokeLinecap="round" vectorEffect="non-scaling-stroke"/><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#2563EB" strokeWidth="5" strokeLinecap="round" vectorEffect="non-scaling-stroke"/></g>)}
  {transitions.map((c,i)=>{const p=nodes.get(c.fromFloor===floor?c.fromNodeId:c.toNodeId)??route?.nodes.find(n=>n.id===c.fromNodeId);if(!p)return null;return <g key={c.edgeId+":"+i} data-testid="floor-transition" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={12/scale} fill="white" stroke="#2563EB" strokeWidth="2" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fontSize:11/scale,fontWeight:750,fill:"#1F5BCB"}}>{c.kind==="lift"?"L":c.kind==="stairs"?"S":"E"}</text></g>;})}</g>}
- {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={f.name} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>{if(!dragged.current)onFacilitySelect?.(f);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
- <title>{f.name}</title><circle r={22/scale} fill="transparent"/><circle r={12/scale} fill={f.id===selectedFacilityId?"#10213B":"#FFF"} stroke="#8AA8C8" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/><FacilityIcon category={f.category} x={-7/scale} y={-7/scale} width={14/scale} height={14/scale} color={f.id===selectedFacilityId?"white":"#3F658E"}/></g>)}</g>}
+ {layers.facilities&&<g data-layer="facilities">{facilities.map(f=><g key={f.id} data-map-item role="button" tabIndex={preview?-1:0} aria-label={name(f.name)} className="facility-pin" transform={`translate(${f.x} ${f.y})`} onClick={()=>{if(!dragged.current)onFacilitySelect?.(f);}} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onFacilitySelect?.(f);}}}>
+ <title>{name(f.name)}</title><circle r={22/scale} fill="transparent"/><circle r={12/scale} fill={f.id===selectedFacilityId?"#10213B":"#FFF"} stroke="#8AA8C8" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/><FacilityIcon category={f.category} x={-7/scale} y={-7/scale} width={14/scale} height={14/scale} color={f.id===selectedFacilityId?"white":"#3F658E"}/></g>)}</g>}
  {layers.endpoints&&route?.stopVisits?.map((s,i)=>{const p=nodes.get(s.nodeId);return p?.floor===floor?<g key={s.id} data-testid="itinerary-waypoint" transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><title>{`Stop ${i+1}: ${s.name}`}</title><circle r={14/scale} fill="#087F73" stroke="white" strokeWidth="3" vectorEffect="non-scaling-stroke"/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:12/scale,fontWeight:800}}>{i+1}</text></g>:null;})}
  {layers.endpoints&&[{p:start,letter:"A",color:"#10213B",test:"start-marker"},{p:destination,letter:destination?.platformId?destination.platformId.split("-")[1]!:"B",color:"#2563EB",test:"destination-marker"}].map(({p,letter,color,test})=>p?.floor===floor?<g key={test} data-testid={test} transform={`translate(${p.x} ${p.y})`} pointerEvents="none"><circle r={15/scale} fill="white"/><circle r={12/scale} fill={color}/><text textAnchor="middle" y={4/scale} style={{fill:"white",fontSize:11/scale,fontWeight:800}}>{letter}</text></g>:null)}
- {decision?.floor===floor&&layers.labels&&<g data-testid="decision-landmark" pointerEvents="none"><circle cx={decision.x} cy={decision.y} r={19/scale} fill="none" stroke="#D99416" strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke"/><title>{decision.name}</title></g>}
+ {decision?.floor===floor&&layers.labels&&<g data-testid="decision-landmark" pointerEvents="none"><circle cx={decision.x} cy={decision.y} r={19/scale} fill="none" stroke="#D99416" strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke"/><title>{name(decision.name)}</title></g>}
  {layers.passenger&&passenger?.floor===floor&&<g data-testid="passenger-marker" data-x={passenger.x} data-y={passenger.y} data-floor={passenger.floor} className="passenger-position" transform={`translate(${passenger.x} ${passenger.y})`} pointerEvents="none">
- <title>Simulated passenger position. Not live positioning.</title><circle r={21/scale} fill="#2563EB" opacity=".13"/><circle r={13/scale} fill="white" stroke="#10213B" strokeWidth="2" vectorEffect="non-scaling-stroke"/><path d={`M0 ${-10/scale}L${7/scale} ${8/scale}L0 ${4/scale}L${-7/scale} ${8/scale}Z`} transform={`rotate(${passenger.heading})`} fill={passengerStatus==="arrived"?"#19BFA9":"#10213B"}/></g>}
+ <title>{t("Simulated passenger position. Not live positioning.")}</title><circle r={21/scale} fill="#2563EB" opacity=".13"/><circle r={13/scale} fill="white" stroke="#10213B" strokeWidth="2" vectorEffect="non-scaling-stroke"/><path d={`M0 ${-10/scale}L${7/scale} ${8/scale}L0 ${4/scale}L${-7/scale} ${8/scale}Z`} transform={`rotate(${passenger.heading})`} fill={passengerStatus==="arrived"?"#19BFA9":"#10213B"}/></g>}
  </svg>
  {children}
  {!preview&&<>
- <details className="map-layer-control"><summary aria-label="Map layers"><Layers3 size={17}/><span>Layers</span></summary><fieldset><legend>Map layers</legend>{(Object.keys(defaults) as (keyof typeof defaults)[]).map(key=><label key={key}><input type="checkbox" checked={layers[key]} onChange={e=>setLayers(current=>({...current,[key]:e.target.checked}))}/>{layerNames[key]}</label>)}</fieldset></details>
- <div className="map-tools" aria-label="Map controls"><button className="icon-button" aria-label="Zoom in" disabled={zoom>=4.99} onClick={()=>zoomAt(1.3)}><Plus size={19}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button className="icon-button" aria-label="Zoom out" disabled={zoom<=1} onClick={()=>zoomAt(1/1.3)}><Minus size={19}/></button>
- <button className="icon-button" aria-label="Reset map view" onClick={()=>{setFollow(false);moveCamera({x:0,y:0,width:station.width,height:station.height});}}><Expand size={18}/></button>
- <button className="icon-button" aria-label="Fit to route" disabled={!route?.nodes.length} onClick={()=>{setFollow(false);moveCamera(fitPoints(route?.nodes??[],station.width,station.height));}}><RouteIcon size={18}/></button>
- {passenger&&<button className={`icon-button ${follow?"following":""}`} aria-label="Center on passenger" aria-pressed={follow} onClick={()=>{setFollow(true);onPassengerFloor?.(passenger.floor);const width=station.width/2.8;moveCamera(constrainCamera({x:passenger.x-width/2,y:passenger.y-width*station.height/station.width/2,width,height:width*station.height/station.width},station.width,station.height));}}><LocateFixed size={19}/></button>}
+ <details className="map-layer-control"><summary aria-label={t("Map layers")}><Layers3 size={17}/><span>{t("Layers")}</span></summary><fieldset><legend>{t("Map layers")}</legend>{(Object.keys(defaults) as (keyof typeof defaults)[]).map(key=><label key={key}><input type="checkbox" checked={layers[key]} onChange={e=>setLayers(current=>({...current,[key]:e.target.checked}))}/>{t(layerNames[key])}</label>)}</fieldset></details>
+ <div className="map-tools" aria-label={t("Map controls")}><button className="icon-button" aria-label={t("Zoom in")} disabled={zoom>=4.99} onClick={()=>zoomAt(1.3)}><Plus size={19}/></button><span className="zoom-label">{Math.round(zoom*100)}%</span><button className="icon-button" aria-label={t("Zoom out")} disabled={zoom<=1} onClick={()=>zoomAt(1/1.3)}><Minus size={19}/></button>
+ <button className="icon-button" aria-label={t("Reset map view")} onClick={()=>{setFollow(false);moveCamera({x:0,y:0,width:station.width,height:station.height});}}><Expand size={18}/></button>
+ <button className="icon-button" aria-label={t("Fit to route")} disabled={!route?.nodes.length} onClick={()=>{setFollow(false);moveCamera(fitPoints(route?.nodes??[],station.width,station.height));}}><RouteIcon size={18}/></button>
+ {passenger&&<button className={`icon-button ${follow?"following":""}`} aria-label={t("Center on passenger")} aria-pressed={follow} onClick={()=>{setFollow(true);onPassengerFloor?.(passenger.floor);const width=station.width/2.8;moveCamera(constrainCamera({x:passenger.x-width/2,y:passenger.y-width*station.height/station.width/2,width,height:width*station.height/station.width},station.width,station.height));}}><LocateFixed size={19}/></button>}
  </div>
- <div className="map-legend"><span><i className="legend-route"/>Route</span><span>S Stairs · E Escalator · L Lift</span></div>
- <div className="map-hint">{hasPassenger?(follow?"Following simulated passenger":"Explore mode · Recenter to follow"):"Drag to pan · Pinch or scroll to zoom"}</div>
+ <div className="map-legend"><span><i className="legend-route"/>{t("Route")}</span><span>{t("S Stairs · E Escalator · L Lift")}</span></div>
+ <div className="map-hint">{hasPassenger?(follow?t("Following simulated passenger"):t("Explore mode · Recenter to follow")):t("Drag to pan · Pinch or scroll to zoom")}</div>
  </>}
  </div>;
 }
