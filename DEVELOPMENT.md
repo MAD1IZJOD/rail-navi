@@ -200,7 +200,7 @@ Wrong turns are selected only at verified decision points and traverse a permitt
 
 At most **four optional stops** are supported. Best insertion evaluates at most five positions while preserving existing relative order. **Optimize order** uses exact Held–Karp dynamic programming over the selected stops, with directed graph-oracle costs: O(2^k k²) states/transitions, k ≤ 4. It minimizes the selected distance/time objective. It does not jointly optimize all facilities in the station or solve time-window/dwell scheduling; hours and departure feasibility are reassessed after ordering.
 
-Replanning preserves exact interpolated walking positions, occupied-connector safeguards, traveled distance, pause state and visited IDs. A facility arrival pauses until Continue; estimated dwell is applied once on continuation. Visited stops cannot be added again within the same session. Explicit Restart returns to the declared entrance with the session's current itinerary; Stop retains pending planning state. Reload resets the local showcase.
+Replanning preserves exact interpolated walking positions, occupied-connector safeguards, traveled distance, pause state and visited IDs. A facility arrival pauses until Continue; estimated dwell is applied once on continuation. Visited stops cannot be added again within the same session. Explicit Restart returns to the declared entrance with the session's current itinerary; Stop retains pending planning state. Reload offers validated journey recovery from the last confirmed location; simulation does not restart automatically.
 
 The clock is absolute seconds on a **fictional service day**, independent of device time. A ticket starts 25 minutes before its scheduled demo departure. Running simulation advances the clock by simulated travel, including the speed multiplier; pause/visit waiting freezes it, and Continue applies the selected dwell estimate. Operator clock changes are explicit. Midnight rollover is represented as Day 2, etc.; departures remain on their explicit original service day and are never silently moved to tomorrow.
 
@@ -223,17 +223,17 @@ The suite includes small hand-verifiable routing fixtures, complete station geom
 
 ## Deployment
 
-Import [MAD1IZJOD/rail-navi](https://github.com/MAD1IZJOD/rail-navi) into Vercel with the Next.js preset, repository root, branch main, Node 22.12+ or 24, install `npm ci` and build `npm run build`. Use default framework output settings. No environment variables are required. Verify `/`, direct `/ticket`, `/demo`, reloads and touch layouts at the actual deployed URL. A local build is not evidence of remote deployment.
+Import [MAD1IZJOD/rail-navi](https://github.com/MAD1IZJOD/rail-navi) into Vercel with the Next.js preset, repository root, branch main, Node 24+, install `npm ci` and build `npm run build`. Use default framework output settings. No environment variables are required. Verify `/`, direct `/ticket`, `/demo`, reloads and touch layouts at the actual deployed URL. A local build is not evidence of remote deployment.
 
 ## Limits and future work
 
 - This is a schematic fictional station and synthetic simulation, not surveyed railway data or live indoor positioning.
-- State and assignment/outage changes are local to the explorer and reset on reload. They are not a shared railway operations feed.
+- Assignment/outage changes are local simulation. A validated saved journey can recover them after reload; they are not a shared railway operations feed.
 - Lift waits, congestion, speed and equipment bays are simplified. Positions during a vertical ride retain the source-floor view until the landing.
 - Camera follow is a bounded 2D simulation; screen-space label widths use a deterministic text estimate rather than typographic shaping.
 - Tick timing is deterministic, not a precision wall-clock model. A background/throttled browser can advance more slowly in real time.
-- Chromium desktop/touch emulation and reduced motion are tested. Physical Android/iOS devices, Safari/Firefox, screen-reader acceptance and long-duration memory profiling remain future validation.
-- The existing ESLint 9/framework-plugin compatibility constraint and moderate development-tool dependency advisories remain; forced upgrades should not be applied without compatibility testing.
-- There is no offline cache, real PNR integration, scanned ticket recognition, mobile native app or multi-station ingestion.
+- Chromium desktop/touch emulation and reduced motion are tested. Additional Firefox 157 and WebKit 27.2 smoke checks passed routing, Hindi switching, verified saving, offline reload/recovery and checkpoint correction. These are browser engines on Windows, not physical Safari/iOS or Android verification. Physical camera/installation, screen-reader acceptance and long-duration memory profiling remain future validation.
+- Dependency audit: `npm audit --omit=dev` reports zero production vulnerabilities. The full audit reports 16 moderate development-tool findings rooted in minimatch GHSA-g3hv-75wg-m249. Its suggested major changes/downgrades are incompatible with existing ESLint callers and were not forced. Reassess the lint toolchain separately before CI processes untrusted glob patterns.
+- There is no real PNR integration, scanned railway-ticket OCR, native mobile app, operator dashboard or multi-station ingestion. QR scanning identifies fixed demo checkpoints only.
 
-The separate station, geometry, topology, routing and simulation contracts can support later verified positioning providers, QR checkpoint providers, an offline station cache, localized labels/instructions and a mobile installation manifest in later work. Batch 5 is not implemented.
+The separate station, geometry, routing, positioning, ticket, recovery and resource-version contracts can support an operator dashboard and authorized integration adapters. Before formal railway deployment, add scoped operator authorization, freshness/reconciliation rules, surveyed datasets, benchmark budgets, formal security testing and physical-device acceptance. Batch 6 has not been implemented.
