@@ -41,7 +41,7 @@ export function validateGraph(graph: NavigationGraph): string[] {
   return errors;
 }
 
-function heading(from: NavigationNode, to: NavigationNode): string {
+function heading(from: NavigationNode, to: NavigationNode): "east" | "west" | "north" | "south" {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? "east" : "west") : (dy >= 0 ? "south" : "north");
@@ -55,7 +55,7 @@ function instructions(nodes: NavigationNode[], edges: NavigationEdge[]): RouteSt
     const to = nodes[i + 1]!;
     if (from.floor !== to.floor) {
       steps.push({
-        kind: "transition",
+        kind: "transition", action: { type: "transition", connection: edge.kind, via: edge.label, toFloor: to.floor, ascending: to.floor > from.floor },
         text: `Take the ${edge.kind === "lift" ? "lift" : edge.kind} ${to.floor > from.floor ? "up" : "down"} to ${floorLabel(to.floor)} at ${edge.label}.`,
         floor: from.floor, toFloor: to.floor,
         nodeIds: [from.id, to.id], edgeIds: [edge.id],
@@ -70,13 +70,14 @@ function instructions(nodes: NavigationNode[], edges: NavigationEdge[]): RouteSt
     const last = steps.at(-1);
     if (last?.kind === "walk" && key === previousWalkKey) {
       last.text = text;
+      last.action = { type: "walk", direction, via: edge.label, target: to.name };
       last.nodeIds.push(to.id);
       last.edgeIds.push(edge.id);
       last.distanceMeters += edge.distanceMeters;
       last.durationSeconds += edge.durationSeconds;
     } else {
       steps.push({
-        kind: "walk", text, floor: from.floor, toFloor: to.floor,
+        kind: "walk", action: { type: "walk", direction, via: edge.label, target: to.name }, text, floor: from.floor, toFloor: to.floor,
         nodeIds: [from.id, to.id], edgeIds: [edge.id],
         distanceMeters: edge.distanceMeters, durationSeconds: edge.durationSeconds,
       });
@@ -85,7 +86,7 @@ function instructions(nodes: NavigationNode[], edges: NavigationEdge[]): RouteSt
   });
   const end = nodes.at(-1);
   if (end) steps.push({
-    kind: "arrive", text: `You have reached ${end.name} on ${floorLabel(end.floor)}.`,
+    kind: "arrive", action: { type: "arrive", target: end.name, floor: end.floor }, text: `You have reached ${end.name} on ${floorLabel(end.floor)}.`,
     floor: end.floor, toFloor: end.floor, nodeIds: [end.id], edgeIds: [],
     distanceMeters: 0, durationSeconds: 0,
   });
