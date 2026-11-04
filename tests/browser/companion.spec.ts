@@ -1,4 +1,5 @@
 import {test,expect,type Page} from "@playwright/test";
+test.beforeEach(async({page})=>{await page.addInitScript(()=>{localStorage.removeItem("railnavi-journey-v1");localStorage.setItem("railnavi-language-v1","en");});});
 import {demoStation as station} from "../../src/lib/station/demo-station";
 import {planJourney} from "../../src/lib/journey/planner";
 import {toJourneyStop} from "../../src/lib/facilities/search";
