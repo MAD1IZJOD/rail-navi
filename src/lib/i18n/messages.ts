@@ -1,6 +1,33 @@
 import type {FloorId,RouteStep} from "../navigation/types";
 export type Language="en"|"hi";
 export const messages:Readonly<Record<string,string>>={
+  "detour": "अतिरिक्त रास्ता",
+  "Central": "मध्य",
+  "Bus interchange": "बस जुड़ाव केंद्र",
+  "Taxi forecourt": "टैक्सी क्षेत्र",
+  "College Avenue": "कॉलेज एवेन्यू",
+  "East arrivals": "पूर्वी आगमन",
+  "Bus / taxi pickup": "बस / टैक्सी क्षेत्र",
+  "Garden terminal": "गार्डन टर्मिनल",
+  "Main concourse entrance": "मुख्य हॉल का प्रवेश",
+  "Secondary concourse entrance": "दूसरे हॉल का प्रवेश",
+  "Main concourse checkpoint": "मुख्य हॉल का चेकपॉइंट",
+  "Secondary concourse checkpoint": "दूसरे हॉल का चेकपॉइंट",
+  "Waiting zone": "प्रतीक्षा क्षेत्र",
+  "Waiting room": "प्रतीक्षा कक्ष",
+  "Assistance point": "सहायता केंद्र",
+  "Security help point": "सुरक्षा सहायता केंद्र",
+  "Food court": "भोजन क्षेत्र",
+  "Quiet lounge": "शांत प्रतीक्षालय",
+  "Family rest area": "परिवार विश्राम क्षेत्र",
+  "Taxi assistance": "टैक्सी संबंधी सहायता",
+  "Main metro transfer lift": "मुख्य मेट्रो जुड़ाव लिफ़्ट",
+  "East metro transfer lift": "पूर्वी मेट्रो जुड़ाव लिफ़्ट",
+  "West landing (+1)": "पश्चिमी उतरने का स्थान (+1)",
+  "West landing (−1)": "पश्चिमी उतरने का स्थान (−1)",
+  "Lower passage": "निचला मार्ग",
+  "Fictional metro interchange (−2)": "काल्पनिक मेट्रो जुड़ाव (−2)",
+
   "Navigation simulation": "नेविगेशन सिमुलेशन",
   "SIMULATION ·": "सिमुलेशन ·",
   "Route progress": "मार्ग की प्रगति",
@@ -440,7 +467,7 @@ export function translate(text:string,language:Language):string{
  if(language==="en")return text;
  const key=text.trim(),exact=messages[key];if(exact)return text.replace(key,exact);
  // These are display-label templates, never generated navigation sentences.
- let m=key.match(/^Platform (\d+)(.*)$/);if(m)return `प्लेटफ़ॉर्म ${m[1]}${m[2]===" boarding area"?" का बोर्डिंग क्षेत्र":m[2]}`;
+ let m=key.match(/^Platform (\d+)(.*)$/);if(m)return `प्लेटफ़ॉर्म ${m[1]}${m[2]===" boarding area"?" का बोर्डिंग क्षेत्र":m[2]===" walkway"?" का पैदल रास्ता":m[2]}`;
  m=key.match(/^Gate (\d+)(.*)$/);if(m)return `द्वार ${m[1]}${m[2]}`;
  m=key.match(/^Level ([+−-]?\d+)$/);if(m)return"स्तर "+m[1];
  m=key.match(/^(\d+) min$/);if(m)return m[1]+" मिनट";
@@ -452,12 +479,14 @@ export const distance=(metres:number,language:Language)=>new Intl.NumberFormat(l
 export const duration=(seconds:number,language:Language)=>(Number.isFinite(seconds)?Math.max(0,Math.ceil(seconds/60)):translate("Unavailable",language))+(Number.isFinite(seconds)?(language==="hi"?" मिनट":" min"):"");
 export function placeName(value:string,language:Language):string{
  if(language==="en")return value;
+ if(value.endsWith(" access"))return placeName(value.slice(0,-7),language)+" तक पहुँचने का रास्ता";
+ if(value.endsWith(" sign"))return placeName(value.slice(0,-5),language)+" का संकेत";
  return value.split(" · ").map(part=>{
   const direct=translate(part,language);if(direct!==part)return direct;
   const bridge=part.match(/^Foot Overbridge ([A-D])(.*)$/);if(bridge)return"पैदल ऊपरी पुल "+bridge[1]+bridge[2];
   if(part==="Lower passenger passage")return"निचला यात्री मार्ग";
   if(part==="South passenger underpass")return"दक्षिणी भूमिगत यात्री मार्ग";
-  const side=part.match(/^(West|East) ·? ?([0-9–]+)$/);if(side)return translate(side[1]!,language)+" · "+side[2];
+  const side=part.match(/^(West|East|Central) ·? ?([0-9–]+)$/);if(side)return translate(side[1]!,language)+" · "+side[2];
   return part;
  }).join(" · ");
 }
