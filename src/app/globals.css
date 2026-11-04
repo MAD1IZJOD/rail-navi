@@ -435,3 +435,8 @@ html[lang=hi] body { font-family:"Noto Sans Devanagari",Arial,sans-serif; line-h
  @page { size:A4; margin:12mm; }body { background:white; }.app-utility,.offline-ribbon,.checkpoint-print-page>header,.print-intro { display:none!important; }.checkpoint-print-page { max-width:none; padding:0; }.checkpoint-print-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8mm; margin:0; }.print-checkpoint { border:1px solid #15334e; padding:5mm; border-radius:2mm; box-shadow:none; }.print-checkpoint svg[role=img] { width:39mm; margin:3mm auto; }.print-checkpoint h2 { font-size:12pt; }.print-checkpoint p { font-size:8pt; }.print-checkpoint>a { display:none; }.print-brand { font-size:14pt; }.print-brand span { font-size:5pt; }* { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
 }
 @media(prefers-reduced-motion:reduce) { .checkpoint-sheet,.utility-sheet,.recovery-sheet { animation:none; } }
+
+/* The explorer already shows its persistent offline assignment notice. */
+.offline-ribbon { pointer-events:none; }
+.navigator:has(.offline-assignment-note)~.offline-ribbon { display:none; }
+@media(max-width:760px) { html[lang=hi] .quick-demo::after { content:"मार्ग देखें"; font-size:10px; } }
