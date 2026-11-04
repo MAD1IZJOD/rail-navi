@@ -5,7 +5,9 @@ import {facilityAvailable,serviceSynonyms} from "./catalog";
 import {assessTiming,type JourneyTiming} from "../journey/time";
 import {insertBestStop,planJourney} from "../journey/planner";
 export const ON_ROUTE_METRES=30,ON_ROUTE_SECONDS=45;
-export const normalizeSearch=(value:string)=>value.toLowerCase().normalize("NFKD").replace(/[’']/g,"").replace(/[^a-z0-9+\-\s]/g," ").replace(/\s+/g," ").trim();
+const hindiTokens:Record<string,string>={"प्राथमिक उपचार":"first aid","खोया पाया":"lost found","खोया-पाया":"lost found","सहायता केंद्र":"help desk","सहायता केन्द्र":"help desk","पूछताछ":"information","मेरे रास्ते में":"on my way","रास्ते में":"on my way","ट्रेन से पहले":"before my train","के पास":"near","निकटतम":"nearest","सबसे पास":"nearest","प्लेटफ़ॉर्म":"platform","प्लेटफॉर्म":"platform","पानी":"water","कॉफ़ी":"coffee","कॉफी":"coffee","चाय":"tea","शौचालय":"toilet","सुलभ":"accessible","व्हीलचेयर":"wheelchair","दवा":"pharmacy","दवाइयाँ":"pharmacy","भोजन":"food","खाना":"food","नाश्ता":"snacks","दुकान":"shop","चार्जिंग":"charging","चार्ज":"charging","सामान":"luggage","टिकट":"tickets","प्रतीक्षालय":"waiting","स्तर":"level","द्वार":"gate","मेट्रो":"metro","मदद":"help"};
+export function queryTokens(value:string){let result=value.normalize("NFC");for(const [hi,en]of Object.entries(hindiTokens))result=result.replaceAll(hi," "+en+" ");return result.replace(/[०-९]/g,c=>String(c.charCodeAt(0)-0x0966));}
+export const normalizeSearch=(value:string)=>queryTokens(value).toLowerCase().normalize("NFKD").replace(/[’']/g,"").replace(/[^a-z0-9+\-\s]/g," ").replace(/\s+/g," ").trim();
 export interface FacilityIntent {supported:boolean;category?:FacilityCategory;accessible:boolean;onWay:boolean;nearest:boolean;platform?:number;gate?:number;floor?:number;message:string}
 export function interpretQuery(query:string,category:FacilityCategory|"all"="all"):FacilityIntent{
  const q=normalizeSearch(query),accessible=/accessible|wheelchair|step free/.test(q);
