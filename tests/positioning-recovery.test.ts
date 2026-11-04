@@ -36,7 +36,7 @@ describe("fixed checkpoint network and untrusted QR inputs",()=>{
   expect(resolveCheckpoint(gate.id,origin).status).toBe("invalid");expect(resolveCheckpoint(gate.id,origin,true).status).toBe("located");
  });
  it("decodes actual printed QR pixels back to the original deep link",()=>{
-  const value=checkpointUrl(gate,origin),matrix=new QRCodeWriter().encode(value,BarcodeFormat.QR_CODE,360,360),pixels=new Uint8ClampedArray(360*360);
+  const value=checkpointUrl(gate,origin),matrix=new QRCodeWriter().encode(value,BarcodeFormat.QR_CODE,360,360,new Map()),pixels=new Uint8ClampedArray(360*360);
   for(let y=0;y<360;y++)for(let x=0;x<360;x++)pixels[y*360+x]=matrix.get(x,y)?0:255;
   const decoded=new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(pixels,360,360))));
   expect(decoded.getText()).toBe(value);expect(qrMatrix(value).path).toContain("h1v1h-1z");
