@@ -89,3 +89,19 @@ test("Hindi scanner and offline settings fit all six viewport widths with keyboa
   await page.getByRole("button",{name:"स्टेशन और ऐप",exact:true}).click();await expect(page.getByRole("button",{name:"स्टेशन ऑफ़लाइन सहेजें",exact:true})).toBeInViewport();await page.screenshot({path:info.outputPath(`settings-hi-${width}.png`)});await page.getByRole("button",{name:"बंद करें",exact:true}).click();
  }
 });
+test("closing or hiding the scanner stops an active camera stream",async({page})=>{
+ await page.addInitScript(()=>{navigator.mediaDevices.getUserMedia=async()=>{const canvas=document.createElement("canvas");canvas.width=640;canvas.height=480;const stream=canvas.captureStream(5);(window as Window&{cameraTracks?:MediaStreamTrack[]}).cameraTracks=stream.getTracks();return stream;};});
+ await page.goto("/demo");
+ for(const action of ["close","hidden"]){
+  await page.getByRole("button",{name:"Scan checkpoint",exact:true}).click();await page.getByRole("button",{name:"Open camera",exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>(window as Window&{cameraTracks?:MediaStreamTrack[]}).cameraTracks?.some(t=>t.readyState==="live"))).toBe(true);
+  if(action==="close")await page.getByRole("button",{name:"Close scanner",exact:true}).click();
+  else await page.evaluate(()=>{Object.defineProperty(document,"hidden",{configurable:true,get:()=>true});document.dispatchEvent(new Event("visibilitychange"));});
+  expect(await page.evaluate(()=>(window as Window&{cameraTracks?:MediaStreamTrack[]}).cameraTracks?.every(t=>t.readyState==="ended"))).toBe(true);
+ }
+});
+test("install prompt acceptance is not presented as confirmed installation",async({page})=>{
+ await page.goto("/demo");await page.evaluate(()=>{const event=new Event("beforeinstallprompt",{cancelable:true});Object.assign(event,{prompt:async()=>{},userChoice:Promise.resolve({outcome:"accepted"})});window.dispatchEvent(event);});
+ await page.getByRole("button",{name:"Station & app",exact:true}).click();await page.getByRole("button",{name:"Install RailNavi",exact:true}).click();await expect(page.getByRole("heading",{name:"Installed",exact:true})).toHaveCount(0);
+ await page.evaluate(()=>window.dispatchEvent(new Event("appinstalled")));await expect(page.getByRole("heading",{name:"Installed",exact:true})).toBeVisible();
+});
