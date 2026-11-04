@@ -14,7 +14,7 @@ export function TicketLookup({trains,onClose,onNavigate,initialOrigin="gate-1"}:
  const [anchor,setAnchor]=useState(initialOrigin);const [busy,setBusy]=useState(false);
  const input=useRef<HTMLInputElement>(null);
  const result=submitted?lookupTicket(submitted,trains):null;
- const train=mode==="ticket"?(result?.status==="found"?result.train:undefined):trains.find(t=>trainItem.id===selected);
+ const train=mode==="ticket"?(result?.status==="found"?result.train:undefined):trains.find(trainItem=>trainItem.id===selected);
  const ticket=mode==="ticket"&&result?.status==="found"?result.ticket:undefined;
  async function retrieve(){setBusy(true);await Promise.resolve();setSubmitted(reference);setBusy(false);}
  return <div className="ticket-backdrop"><section className="ticket-dialog" role="dialog" aria-modal="true" aria-label={t("Find my platform")} onKeyDown={e=>{if(e.key==="Escape")onClose();if(e.key==="Tab"){const els=e.currentTarget.querySelectorAll<HTMLElement>('button,input,select');const first=els[0],last=els[els.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}}>
