@@ -32,8 +32,8 @@ test("real local camera decoder reads video frames and stops its media tracks",a
  }finally{await browser.close();}
 });
 test("requests no camera on opening the sheet and handles permission denial",async({page})=>{
- await page.addInitScript(()=>{(window as Window&{cameraCalls?:number}).cameraCalls=0;navigator.mediaDevices.getUserMedia=async()=>{(window as Window&{cameraCalls:number}).cameraCalls++;throw new DOMException("Denied","NotAllowedError");};});
- await page.goto("/demo");await page.getByRole("button",{name:"Scan checkpoint",exact:true}).click();expect(await page.evaluate(()=>(window as Window&{cameraCalls:number}).cameraCalls)).toBe(0);
+ await page.addInitScript(()=>{(window as Window&{cameraCalls?:number}).cameraCalls=0;navigator.mediaDevices.getUserMedia=async()=>{const state=window as Window&{cameraCalls?:number};state.cameraCalls=(state.cameraCalls??0)+1;throw new DOMException("Denied","NotAllowedError");};});
+ await page.goto("/demo");await page.getByRole("button",{name:"Scan checkpoint",exact:true}).click();expect(await page.evaluate(()=>(window as Window&{cameraCalls?:number}).cameraCalls)).toBe(0);
  await page.getByRole("button",{name:"Open camera",exact:true}).click();await expect(page.getByRole("alert")).toContainText("permission denied");await page.getByLabel("Checkpoint code or QR link").fill(gate.id);await page.getByRole("button",{name:"Check code",exact:true}).click();await expect(page.getByRole("button",{name:"Use this location",exact:true})).toBeVisible();
 });
 test("invalid codes and external deep links cannot move the passenger",async({page})=>{
