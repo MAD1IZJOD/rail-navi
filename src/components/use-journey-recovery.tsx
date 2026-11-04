@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 import {MapPin} from "lucide-react";
 import {JOURNEY_KEY,parseJourney,writeJourney,type RecoveryResult,type SavedJourney} from "@/lib/journey/recovery";
+import {useDialog} from "./use-dialog";
 import {useLanguage} from "./language-provider";
 export function useJourneyRecovery(snapshot:SavedJourney|null,onRecover:(saved:SavedJourney)=>void,onFresh:()=>void){
  const [result,setResult]=useState<RecoveryResult>({status:"empty"}),[ready,setReady]=useState(false),[error,setError]=useState("");
@@ -17,8 +18,8 @@ export function useJourneyRecovery(snapshot:SavedJourney|null,onRecover:(saved:S
  return{result,ready,error,accept,fresh};
 }
 export function RecoveryPrompt({result,onResume,onFresh}:{result:RecoveryResult;onResume:()=>void;onFresh:()=>void}){
- const {t}=useLanguage();if(result.status==="empty")return null;
- return <div className="recovery-backdrop"><section className="recovery-sheet" role="dialog" aria-modal="true" aria-labelledby="recovery-title"><MapPin size={34}/><div className="eyebrow">RAILNAVI</div><h2 id="recovery-title">{t(result.status==="valid"?"Saved journey found":result.status==="incompatible"?"Station data changed. Confirm a location before continuing.":"Saved journey could not be restored. Choose a new location.")}</h2>
+ const {t}=useLanguage();const dialog=useDialog(result.status!=="empty");if(result.status==="empty")return null;
+ return <div className="recovery-backdrop"><section ref={dialog} tabIndex={-1} className="recovery-sheet" role="dialog" aria-modal="true" aria-labelledby="recovery-title"><MapPin size={34}/><div className="eyebrow">RAILNAVI</div><h2 id="recovery-title">{t(result.status==="valid"?"Saved journey found":result.status==="incompatible"?"Station data changed. Confirm a location before continuing.":"Saved journey could not be restored. Choose a new location.")}</h2>
  {result.status==="valid"&&<><p>{t("Resume from your last confirmed checkpoint. No movement is inferred while the app was closed.")}</p>{result.journey.wasSimulating&&<p>{t("Previous simulation will not resume automatically.")}</p>}<button autoFocus type="button" className="button button-primary" onClick={onResume}>{t("Resume Journey")}</button></>}
  <button type="button" className="button button-secondary" onClick={onFresh}>{t("Start Fresh")}</button></section></div>;
 }
