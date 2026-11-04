@@ -8,7 +8,7 @@ All station layouts, tickets, departures, facilities, availability conditions, a
 
 ## Run
 
-Node.js 22.12+ and npm are required. Node 24 was used for verification.
+Node.js 24+ and npm are required (including the local QR decoder’s Node toolchain). Node 24.18.0 was used for verification.
 
 ```powershell
 git clone https://github.com/MAD1IZJOD/rail-navi.git
@@ -18,6 +18,54 @@ npm run dev
 ```
 
 Open [RailNavi locally](http://localhost:3000). No environment variables, secrets, accounts, paid mapping APIs or database are required.
+
+
+## Checkpoints, offline use and bilingual navigation
+
+The 72 fixed checkpoints reuse reachable station nodes: 40 at Level 0, 12 at +1, 4 at +2, 12 at −1 and 4 at −2. All 8 gates and 20 platform boarding anchors have checkpoints, alongside concourses, Bridge A–D landings, both underpasses, lift landings and metro connections. Coordinates and walking connectivity are never inferred from a scanned string.
+
+- `src/lib/positioning/checkpoints.ts` owns the catalog, version-1 payload and validation. Accepted forms are exact `railnavi://checkpoint/v1/<station>/<checkpoint>` payloads, same-origin `/demo?v=1&station=...&checkpoint=...` links, and explicitly entered known manual codes. Input is limited to 512 characters. Other origins, schemes, credentials, fragments, unsupported versions, unknown stations/anchors and unexpected query parameters are rejected. QR contents are never executed or used as redirects. Public printed codes are not authentication or tamper-proof location evidence.
+- `manual.ts` exposes manual, scanned-QR and simulation providers through the same verified-node contract. A QR fix means **last confirmed fixed location**, not continuous live tracking. Confirming a checkpoint stops simulation and replans from that node, preserving the final destination, pending optional visits, preferences and current closures. Simulation must be restarted explicitly.
+- `checkpoint-scanner.tsx` lazy-loads `@zxing/browser` / `@zxing/library` for local image and video decoding. Camera permission is requested only by Open camera; rear-facing capture is preferred. Tracks and decoder controls stop on recognition, confirmation, closing, unmount and a hidden document. Permission-denied/unsupported camera flows retain code entry and checkpoint selection. No frames leave the browser. Image decoding accepts local files up to 5 MB.
+- `/checkpoints` prints actual encoded QR matrices, not illustration assets. The default six codes include Gate 2, the Bridge B terminal entrance/upper landing, the Platform 17 Bridge B landing/boarding area and the metro concourse. Show all checkpoints prints the catalog. Links derive from the current origin; print from the deployed HTTPS origin for use on phones. A localhost printout points back to the device itself. A system camera’s external browser can use an offline link only if that same browser/origin already saved the app; otherwise connectivity is required.
+
+### Verified offline download
+
+Use a **production build**, not `next dev`: `npm run build`, then `npm start`. The postbuild script generates an ignored `public/offline-manifest.json` from the actual prerendered HTML, every emitted static chunk/CSS/font (including the lazy QR decoder), manifest, app icons and seven station-data resources. Each entry has its bucket, byte count and SHA-256. The build version fingerprints these resources; the station version fingerprints topology, geometry, facilities and checkpoints.
+
+`public/sw.js` serves `/`, `/demo`, `/ticket` and `/checkpoints` through full-document navigation. Shared DocumentLink anchors deliberately avoid depending on uncached Next.js RSC responses. Known navigation requests try the network first and fall back to the saved HTML; query-bearing checkpoint links resolve locally after hydration. Static chunks use the current/previous downloaded asset set. Arbitrary third-party URLs and sensitive content are never cached.
+
+**Save Station Offline** stages a uniquely named download. Shell, static, geometry, topology, facilities, checkpoints, locales and fictional tickets use separate cache buckets. Every response’s bytes/hash must match, all required resource types must be present, and the entire set is checked again before the metadata readiness marker is committed. Failure deletes the partial staging set and preserves an earlier complete download. Status checks reverify stored content, detecting eviction or corruption. An update commits atomically, retains the preceding version for older open tabs and removes older RailNavi caches. A waiting service worker activates only on the explicit update action; reload waits for controller activation.
+
+Downloaded synthetic data and its bundled graph are the same build version; offline calculations never call a railway API. After successful download, reloads, tickets, floors, routes, facilities, stops, closures, language switching, QR decoding and simulation remain available without network access. Browser storage can be evicted, private browsing can restrict storage and a cold first visit cannot work offline. Opening hours, departures and platform changes remain fictional local simulation; **offline assignments are not verified live railway information**. A future authorized feed needs explicit freshness and reconciliation policies.
+
+### Recovery and language
+
+`journey/recovery.ts` validates a versioned, maximum-20-KB local record against the current station, node/checkpoint IDs, train assignments, facilities, four-stop limit, dwell bounds, closure IDs and timing preferences. It reconstructs an allowlisted object rather than trusting stored properties. No booking reference, passenger display name, real PNR, credentials or camera image is persisted. Topology/version changes invalidate incompatible recovery safely; malformed records offer Start Fresh. Storage failure is visible and does not block routing.
+
+Resume recalculates from the last confirmed manual/QR location and restores pending visits, train assignment changes, accessibility, closures, simulated clock, buffer and language. No movement is inferred while the app is closed, and previous simulation does not auto-resume. Clear saved RailNavi data deletes only RailNavi cache/storage keys and resets the current journey.
+
+English and Hindi use a shared context and a persisted language key, with a browser-language default. Core forms, errors, map controls, facilities, ticket search, offline/install/recovery/scanning and simulation states have Hindi text. Generic station landmarks and units are localized while fictional proper names remain recognizable. Routing emits structured walk/transition/arrival actions; language-specific renderers build instructions independently of English prose. Switching language updates presentation without routing again or dropping stops. Noto Sans Devanagari 400/600 is bundled through Fontsource under OFL-1.1; there is no external font request.
+
+### Installation, privacy and deployment
+
+The manifest launches `/demo` in standalone mode with RailNavi 192/512 PNG icons, a maskable 512 icon and an Apple touch icon. Native install prompts appear only when the browser supplies `beforeinstallprompt`; installation is shown as confirmed only after `appinstalled` or a detected standalone launch. Android/desktop menu guidance is a fallback. iPhone/iPad instructions require Safari → Share → Add to Home Screen. Firefox and other browsers may support offline use without a browser-managed install prompt. There is no native app or app-store deployment.
+
+Camera and service workers require a secure context: HTTPS in deployment or localhost during development. A phone visiting an ordinary LAN HTTP URL may not have these APIs; manual codes still work. Deploy the full Next.js project on Vercel with Node 24 and the standard `npm run build` command so postbuild runs. Keep the generated public index in the build output; do not deploy it from an earlier build. Preserve `/sw.js` root scope, JavaScript MIME type, no-store headers and manifest/icon routes. No deployment URL is claimed here.
+
+No analytics, geolocation requests, frame uploads, authentication, external booking feeds or server-side passenger storage are used. All operational data is synthetic. Authorized real-station use still needs surveyed/maintained layouts, physical checkpoint placement/inspection, railway assignment adapters, privacy/security review, freshness rules and field accessibility validation.
+
+### Reproduce the Batch 5 showcase
+
+1. Open RailNavi, choose हिन्दी, then look up RN-DEMO-1035 (Platform 17). Pick Gate 2 and navigate.
+2. Open Scan checkpoint. Scan the printed Gate 2 QR, upload its QR image, or clearly use the manual code RN-GATE-2. Confirm the location. Start simulation only if demonstrating synthetic movement.
+3. Search water on my way / रास्ते में पानी and add a suitable reachable open facility. The platform remains last.
+4. Open Station & app, Save Station Offline and wait for Available offline. Disable the network, reload and choose Resume Journey (यात्रा फिर शुरू करें).
+5. Enter or scan RN-WEST-B-1, the Bridge B main-terminal upper landing. Confirm; the map switches to +1 and replans from that anchor, retaining the pending visit.
+6. Switch back to English. Simulate a platform change to Platform 11. Review the updated route and timing. Start simulated navigation, set 120× in Demo controls, continue after the facility and reach Platform 11.
+7. Restore the network and use Clear saved RailNavi data when finished. No live railway information or real passenger reference is involved.
+
+QR camera tests use a genuine QR encoded into a controlled video stream and verify that all tracks end. This is browser automation, not physical-phone camera verification. Offline tests disable the browser network after a verified save, reload, recover, resolve another checkpoint and finish a changed-platform journey. Browser screenshots cover 360, 390, 430, 768, 1280 and 1440 px. Real handset camera quality, iOS home-screen installation and low-memory eviction still need field verification. Additional browser-engine checks and exact final results are reported with delivery rather than assumed from emulation.
 
 ## Reproduce the complete Batch 4 demo
 
