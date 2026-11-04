@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+test.beforeEach(async({page})=>{await page.addInitScript(()=>{localStorage.removeItem("railnavi-journey-v1");localStorage.setItem("railnavi-language-v1","en");});});
 import { findRoute } from "../../src/lib/navigation/engine";
 import { demoStation as station, bridgeAEdgeIds } from "../../src/lib/station/demo-station";
 import type { FloorId, GeneratedRoute } from "../../src/lib/navigation/types";
