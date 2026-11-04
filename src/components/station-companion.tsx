@@ -17,7 +17,7 @@ interface DiscoveryProps{
  onInspect:(facility:Facility,match?:FacilityMatch)=>void;onMatches:(ids:string[])=>void;
 }
 export function FacilityDiscovery(p:DiscoveryProps){
- const {t,name,language,floor:displayFloor,duration:mins}=useLanguage();
+ const {t,name,floor:displayFloor,duration:mins}=useLanguage();
  const [assistance,setAssistance]=useState(false);
  const latest=useRef(p);
  useEffect(()=>{latest.current=p;},[p]);
@@ -48,7 +48,7 @@ export function FacilityDiscovery(p:DiscoveryProps){
 }
 interface DetailProps{facility:Facility;match?:FacilityMatch;now:number;availability:Record<string,boolean>;trainActive:boolean;pending:boolean;visited?:boolean;onClose:()=>void;onAdd:(accessible?:boolean)=>void;onMain:()=>void}
 export function FacilityDetails({facility:f,match:r,now,availability,trainActive,pending,visited,onClose,onAdd,onMain}:DetailProps){
- const {t,name,language,floor:displayFloor,duration:mins}=useLanguage();
+ const {t,name,floor:displayFloor,duration:mins}=useLanguage();
  const open=availability[f.id]===false?false:r?.open??facilityAvailable(f,now,availability),reachable=r?.reachable??false;
  return <div className="facility-detail companion-detail" role="region" aria-label={t("Selected facility")}>
  <button type="button" className="detail-close icon-button" aria-label={t("Close facility details")} onClick={onClose}><X size={18}/></button>
