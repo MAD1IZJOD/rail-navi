@@ -189,4 +189,3 @@ Import [MAD1IZJOD/rail-navi](https://github.com/MAD1IZJOD/rail-navi) into Vercel
 - There is no offline cache, real PNR integration, scanned ticket recognition, mobile native app or multi-station ingestion.
 
 The separate station, geometry, topology, routing and simulation contracts can support later verified positioning providers, QR checkpoint providers, an offline station cache, localized labels/instructions and a mobile installation manifest in later work. Batch 5 is not implemented.
-
