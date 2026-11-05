@@ -101,7 +101,17 @@ test("closing or hiding the scanner stops an active camera stream",async({page})
  }
 });
 test("install prompt acceptance is not presented as confirmed installation",async({page})=>{
- await page.goto("/demo");await page.evaluate(()=>{const event=new Event("beforeinstallprompt",{cancelable:true});Object.assign(event,{prompt:async()=>{},userChoice:Promise.resolve({outcome:"accepted"})});window.dispatchEvent(event);});
- await page.getByRole("button",{name:"Station & app",exact:true}).click();await page.getByRole("button",{name:"Install RailNavi",exact:true}).click();await expect(page.getByRole("heading",{name:"Installed",exact:true})).toHaveCount(0);
- await page.evaluate(()=>window.dispatchEvent(new Event("appinstalled")));await expect(page.getByRole("heading",{name:"Installed",exact:true})).toBeVisible();
+ await page.goto("/demo");
+ await page.getByRole("button",{name:"Station & app",exact:true}).click();
+ await page.evaluate(()=>{
+  const event=new Event("beforeinstallprompt",{cancelable:true});
+  Object.assign(event,{prompt:async()=>{},userChoice:Promise.resolve({outcome:"accepted"})});
+  window.dispatchEvent(event);
+ });
+ const installButton=page.getByRole("button",{name:"Install RailNavi",exact:true});
+ await installButton.click();
+ await expect(installButton).toHaveCount(0);
+ await expect(page.getByRole("heading",{name:"Installed",exact:true})).toHaveCount(0);
+ await page.evaluate(()=>window.dispatchEvent(new Event("appinstalled")));
+ await expect(page.getByRole("heading",{name:"Installed",exact:true})).toBeVisible();
 });
