@@ -440,3 +440,48 @@ html[lang=hi] body { font-family:"Noto Sans Devanagari",Arial,sans-serif; line-h
 .offline-ribbon { pointer-events:none; }
 .navigator:has(.offline-assignment-note)~.offline-ribbon { display:none; }
 @media(max-width:760px) { html[lang=hi] .quick-demo::after { content:"मार्ग देखें"; font-size:10px; } }
+
+@media (max-width: 760px) {
+  .navigator .station-map {
+    container: station-map / size;
+  }
+
+  .navigator:has(.next-direction) .station-strip {
+    min-height: 50px;
+    padding-block: 3px;
+  }
+
+  .navigator:has(.next-direction) .station-strip :is(.eyebrow, p) {
+    display: none;
+  }
+
+  @container station-map (max-height: 270px) {
+    .station-map .floor-switcher {
+      display: flex;
+      width: auto;
+      padding: 2px;
+    }
+
+    .station-map .floor-switcher > span {
+      display: none;
+    }
+
+    .station-map .floor-switcher button {
+      width: 44px;
+    }
+
+    .station-map .map-hint {
+      display: none;
+    }
+  }
+
+  @container station-map (max-height: 180px) {
+    .station-map .map-tools {
+      bottom: 8px;
+    }
+
+    .station-map .map-legend {
+      display: none;
+    }
+  }
+}
