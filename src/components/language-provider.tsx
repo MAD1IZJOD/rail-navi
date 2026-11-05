@@ -21,4 +21,3 @@ export function LanguageControl(){
  const {language,setLanguage,t}=useLanguage();
  return <label className="language-control"><span className="sr-only">{t("Language")}</span><select aria-label={t("Language")} value={language} onChange={e=>setLanguage(e.target.value as Language)}><option value="en" lang="en">English</option><option value="hi" lang="hi">हिन्दी</option></select></label>;
 }
-
