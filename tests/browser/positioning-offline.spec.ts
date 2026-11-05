@@ -65,6 +65,12 @@ test("offline Hindi ticket journey recovers, corrects its checkpoint and reaches
  await expect(page.getByTestId("active-platform")).toHaveText("11");await expect(page.locator(".directions-list li").last()).toContainText("Platform 11 boarding area");await fold(page);
  await page.getByRole("button",{name:"Start simulated navigation",exact:true}).click();await page.getByText("Demo controls",{exact:true}).click();await page.getByLabel("Simulation speed",{exact:true}).selectOption("120");await page.getByText("Demo controls",{exact:true}).click();
  await expect(page.getByTestId("simulation-status")).toHaveAttribute("data-state","at-stop",{timeout:25000});await page.getByRole("button",{name:"Continue after visit",exact:true}).click();await expect(page.getByTestId("simulation-status")).toHaveAttribute("data-state","arrived",{timeout:25000});
+ for(const button of await page.locator(".floor-switcher button").all()){
+  await expect(button).toBeInViewport({ratio:1});
+ }
+ await page.getByRole("button",{name:"Show Level -2",exact:true}).click();
+ await expect(page.getByRole("button",{name:"Show Level -2",exact:true})).toHaveAttribute("aria-pressed","true");
+ await page.getByRole("button",{name:"Show Level 0",exact:true}).click();
  await page.screenshot({path:info.outputPath("offline-arrival.png")});expect(errors).toEqual([]);
 });
 test("offline readiness detects evicted resources and clear data removes only app data",async({page})=>{
